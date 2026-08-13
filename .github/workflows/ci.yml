@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --python ${{ matrix.python-version }} --with pytest --with ruff pytest
+      - run: uv run --python ${{ matrix.python-version }} --with ruff ruff check src tests
+      - run: uv run --python ${{ matrix.python-version }} --with ruff ruff format --check src tests
+      - run: uv build
