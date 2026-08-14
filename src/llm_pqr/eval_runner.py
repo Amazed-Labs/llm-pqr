@@ -17,7 +17,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).parents[1]
+ROOT = Path(__file__).parents[2]
 DEFAULT_CORPUS = ROOT / "evals" / "routing-v1.json"
 
 
@@ -56,6 +56,15 @@ def _score(task: dict[str, Any], text: str) -> bool | None:
     return None
 
 
+def normalize_cli_output(stdout: str) -> str:
+    """Strip known Hermes one-shot wrapper lines without altering model content."""
+    return "\n".join(
+        line
+        for line in stdout.splitlines()
+        if not line.startswith("Warning: Unknown toolsets:") and not line.startswith("session_id:")
+    ).strip()
+
+
 def run_row(
     row: dict[str, Any], tasks: dict[str, dict[str, Any]], candidates: dict[str, dict[str, Any]]
 ) -> None:
@@ -78,6 +87,8 @@ def run_row(
         candidate["model"],
         "--provider",
         candidate["provider"],
+        "--toolsets",
+        "__pqr_no_tools__",
         "--max-turns",
         "1",
         "--ignore-rules",
@@ -95,7 +106,7 @@ def run_row(
             latency_ms=round((time.monotonic() - started) * 1000, 1),
         )
         return
-    response = completed.stdout.strip()
+    response = normalize_cli_output(completed.stdout)
     row.update(
         status="valid_response" if completed.returncode == 0 and response else "failed",
         failure_class=None if completed.returncode == 0 and response else "provider_or_cli",

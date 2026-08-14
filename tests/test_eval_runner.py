@@ -1,9 +1,19 @@
 import json
 from pathlib import Path
 
-from llm_pqr.eval_runner import schedule
+from llm_pqr.eval_runner import DEFAULT_CORPUS, normalize_cli_output, schedule
 
 CORPUS = Path(__file__).parents[1] / "evals" / "routing-v1.json"
+
+
+def test_normalize_cli_output_removes_wrapper_lines_only():
+    raw = "Warning: Unknown toolsets: __pqr_no_tools__\n\nsession_id: abc\nSAFE\n"
+    assert normalize_cli_output(raw) == "SAFE"
+
+
+def test_runner_default_corpus_points_to_checked_in_artifact():
+    assert DEFAULT_CORPUS == CORPUS
+    assert DEFAULT_CORPUS.is_file()
 
 
 def test_schedule_blocks_cloud_candidates_for_local_only_tasks():
