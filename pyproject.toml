@@ -18,6 +18,12 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Amazed-Labs/llm-pqr"
+Repository = "https://github.com/Amazed-Labs/llm-pqr"
+Issues = "https://github.com/Amazed-Labs/llm-pqr/issues"
+Changelog = "https://github.com/Amazed-Labs/llm-pqr/blob/main/CHANGELOG.md"
+
 [project.scripts]
 llm-pqr = "llm_pqr.cli:main"
 

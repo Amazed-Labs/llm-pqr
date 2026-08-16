@@ -13,11 +13,31 @@ Model choice is contextual. A low-cost local model may be ideal for private tran
 ## Quick start
 
 ```bash
-pip install llm-pqr
+python -m pip install llm-pqr
 llm-pqr init --output models.json
 # Edit models.json with your models and measured values.
 llm-pqr choose --config models.json --input-tokens 1200 --output-tokens 300
 ```
+
+Example output from the checked-in starter configuration:
+
+```json
+{
+  "estimated_cost_usd": 0.0,
+  "excluded": {},
+  "reason": "best weighted score",
+  "score": 0.699286,
+  "selected": {
+    "id": "local-model",
+    "local": true,
+    "model": "replace-me",
+    "provider": "your-local-runtime"
+  }
+}
+```
+
+The output also includes a plain-English `explanation` of the winning score and
+the normalized priority weights.
 
 Require privacy/locality or a capability when needed:
 
@@ -67,7 +87,7 @@ The command returns JSON containing the selected model, excluded candidates, a s
 2. Normalize the remaining candidates' declared cost, latency, and quality values.
 3. Choose the highest weighted score and explain the result.
 
-Privacy is a constraint, not a score: a non-local candidate cannot win a `--local-only` request.
+Privacy is a constraint, not a score: a non-local candidate cannot win a `--local-only` request. See [Privacy Is a Constraint, Not a Score](docs/privacy-is-a-constraint.md) for the design rationale.
 
 ## Important limits
 
