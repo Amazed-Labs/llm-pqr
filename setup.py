@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="llm-pqr",
-    version="0.1.0",
+    version="0.1.1",
     description="Test your models. Pick with evidence.",
     package_dir={"": "src"},
     packages=find_packages("src"),

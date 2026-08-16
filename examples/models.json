@@ -1,0 +1,42 @@
+{
+  "priorities": {
+    "cost": 8,
+    "latency": 6,
+    "quality": 7
+  },
+  "models": [
+    {
+      "id": "local-private",
+      "provider": "your-local-runtime",
+      "model": "your-local-model",
+      "local": true,
+      "quality": 0.88,
+      "latency_ms": 1800,
+      "input_cost_per_million": 0,
+      "output_cost_per_million": 0,
+      "capabilities": ["text", "json"]
+    },
+    {
+      "id": "economy-cloud",
+      "provider": "your-economy-provider",
+      "model": "your-economy-model",
+      "local": false,
+      "quality": 0.90,
+      "latency_ms": 900,
+      "input_cost_per_million": 0.24,
+      "output_cost_per_million": 0.96,
+      "capabilities": ["text", "json"]
+    },
+    {
+      "id": "frontier-cloud",
+      "provider": "your-frontier-provider",
+      "model": "your-frontier-model",
+      "local": false,
+      "quality": 0.97,
+      "latency_ms": 1400,
+      "input_cost_per_million": 2.0,
+      "output_cost_per_million": 12.0,
+      "capabilities": ["text", "json", "tools"]
+    }
+  ]
+}

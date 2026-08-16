@@ -15,38 +15,78 @@ Model choice is contextual. A low-cost local model may be ideal for private tran
 ```bash
 python -m pip install llm-pqr
 llm-pqr init --output models.json
-# Edit models.json with your models and measured values.
-llm-pqr choose --config models.json --input-tokens 1200 --output-tokens 300
+llm-pqr choose \
+  --config models.json \
+  --input-tokens 1200 \
+  --output-tokens 300
 ```
 
-Example output from the checked-in starter configuration:
+For a more realistic reproducible example after cloning the repository:
+
+```bash
+llm-pqr choose \
+  --config examples/models.json \
+  --input-tokens 1200 \
+  --output-tokens 300
+```
+
+With the checked-in illustrative configuration, cost is weighted `8/10`, speed
+`6/10`, and quality `7/10`. LLM-PQR recommends the economical cloud candidate
+and shows its work:
 
 ```json
 {
-  "estimated_cost_usd": 0.0,
-  "excluded": {},
-  "reason": "best weighted score",
-  "score": 0.699286,
+  "estimated_cost_usd": 0.000576,
+  "explanation": "Selected economy-cloud: best weighted score; estimated cost: $0.000576; priority weights: cost=0.38, latency=0.29, quality=0.33.",
+  "score": 0.787238,
   "selected": {
-    "id": "local-model",
+    "id": "economy-cloud",
+    "local": false,
+    "model": "your-economy-model",
+    "provider": "your-economy-provider"
+  }
+}
+```
+
+Add `--local-only` and hosted candidates become ineligible rather than merely
+receiving a lower privacy score:
+
+```bash
+llm-pqr choose --config examples/models.json --local-only
+```
+
+```json
+{
+  "excluded": {
+    "economy-cloud": "not local",
+    "frontier-cloud": "not local"
+  },
+  "selected": {
+    "id": "local-private",
     "local": true,
-    "model": "replace-me",
+    "model": "your-local-model",
     "provider": "your-local-runtime"
   }
 }
 ```
 
-The output also includes a plain-English `explanation` of the winning score and
-the normalized priority weights.
+The values in `examples/models.json` are illustrative, not universal rankings.
+Replace them with measured quality, latency, and verified current prices for
+your models.
 
-Require privacy/locality or a capability when needed:
+Create a fresh editable configuration with:
 
 ```bash
-llm-pqr choose --config models.json --local-only --require text
+llm-pqr init --output models.json
+```
+
+Require a capability when needed:
+
+```bash
 llm-pqr choose --config models.json --require tools
 ```
 
-The command returns JSON containing the selected model, excluded candidates, a score, the estimated cost (when rates are supplied), and the normalized priority weights.
+The command returns JSON containing the selected model, excluded candidates, a score, the estimated cost (when rates are supplied), and normalized priority weights.
 
 ## User-controlled configuration
 
