@@ -146,6 +146,16 @@ uv run --with ruff ruff format --check src tests
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md).
 
+## Project and attribution
+
+LLM-PQR was created by **Dov Ginsburg** and is maintained by **AMAZED Labs**.
+The canonical project is [Amazed-Labs/llm-pqr](https://github.com/Amazed-Labs/llm-pqr).
+
+If you use, modify, or redistribute LLM-PQR, please preserve the copyright and
+license notice required by the MIT License. For academic or published work, the
+repository includes a [`CITATION.cff`](CITATION.cff) file with the preferred
+citation.
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. Copyright © 2026 AMAZED Labs. See [LICENSE](LICENSE).
