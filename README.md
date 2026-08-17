@@ -35,19 +35,20 @@ llm-pqr choose \
 ```
 
 With the checked-in illustrative configuration, cost is weighted `8/10`, speed
-`6/10`, and quality `7/10`. LLM-PQR recommends the economical cloud candidate
-and shows its work:
+`6/10`, and quality `7/10`. LLM-PQR recommends the local-illustrative candidate
+because cost and latency are weighted most heavily and the local candidate has
+zero token cost:
 
 ```json
 {
-  "estimated_cost_usd": 0.000576,
-  "explanation": "Selected economy-cloud: best weighted score; estimated cost: $0.000576; priority weights: cost=0.38, latency=0.29, quality=0.33.",
-  "score": 0.787238,
+  "estimated_cost_usd": 0.0,
+  "explanation": "Selected local-illustrative: best weighted score; estimated cost: $0.000000; priority weights: cost=0.38, latency=0.29, quality=0.33.",
+  "score": 0.797619,
   "selected": {
-    "id": "economy-cloud",
-    "local": false,
-    "model": "your-economy-model",
-    "provider": "your-economy-provider"
+    "id": "local-illustrative",
+    "local": true,
+    "model": "your-local-model",
+    "provider": "your-local-runtime"
   }
 }
 ```
@@ -62,11 +63,11 @@ llm-pqr choose --config examples/models.json --local-only
 ```json
 {
   "excluded": {
-    "economy-cloud": "not local",
-    "frontier-cloud": "not local"
+    "economy-illustrative": "not local",
+    "frontier-illustrative": "not local"
   },
   "selected": {
-    "id": "local-private",
+    "id": "local-illustrative",
     "local": true,
     "model": "your-local-model",
     "provider": "your-local-runtime"
