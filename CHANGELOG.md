@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-08-17
+
+- Add `docs/integrations/hermes-as-consumer.md` documenting the private
+  Hermes policy-routing pilot. The pilot is independent of this package;
+  LLM-PQR does not import, link, or run it. The doc explicitly avoids any
+  production, benchmark, latency, cost, or quality claim about the pilot.
+- No runtime code changes; selection core, CLI, and evals unchanged.
+
 ## 0.1.1 — 2026-08-16
 
 - Publishable Python package and verified CLI entry point.
