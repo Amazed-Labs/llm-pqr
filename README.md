@@ -10,6 +10,10 @@ LLM-PQR is a small, provider-neutral tool for choosing among *your* models. You 
 
 Model choice is contextual. A low-cost local model may be ideal for private transformations; a stronger hosted model may be worthwhile for complex work. LLM-PQR keeps that decision in user-controlled data rather than hard-coding vendor tiers or marketing labels.
 
+## Real-world reference
+
+A private [Hermes Agent policy-routing pilot](docs/integrations/hermes-as-consumer.md) explores the same bounded-routing questions LLM-PQR answers: hard local-only constraints, capability floors, monotonic rewrites, and content-free route logging. The pilot is independent of this package; LLM-PQR does not import, link, or run it, and the document makes no production or benchmark claims.
+
 ## Quick start
 
 ```bash
