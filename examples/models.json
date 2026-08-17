@@ -1,4 +1,5 @@
 {
+  "_comment": "Illustrative example only. Values are not vendor rankings or measurements. Replace with measured quality, latency, and verified current prices from your own evaluation.",
   "priorities": {
     "cost": 8,
     "latency": 6,
@@ -6,36 +7,36 @@
   },
   "models": [
     {
-      "id": "local-private",
+      "id": "local-illustrative",
       "provider": "your-local-runtime",
       "model": "your-local-model",
       "local": true,
-      "quality": 0.88,
-      "latency_ms": 1800,
+      "quality": 0.65,
+      "latency_ms": 900,
       "input_cost_per_million": 0,
       "output_cost_per_million": 0,
       "capabilities": ["text", "json"]
     },
     {
-      "id": "economy-cloud",
+      "id": "economy-illustrative",
       "provider": "your-economy-provider",
       "model": "your-economy-model",
       "local": false,
-      "quality": 0.90,
-      "latency_ms": 900,
-      "input_cost_per_million": 0.24,
-      "output_cost_per_million": 0.96,
+      "quality": 0.85,
+      "latency_ms": 1200,
+      "input_cost_per_million": 0.5,
+      "output_cost_per_million": 1.5,
       "capabilities": ["text", "json"]
     },
     {
-      "id": "frontier-cloud",
+      "id": "frontier-illustrative",
       "provider": "your-frontier-provider",
       "model": "your-frontier-model",
       "local": false,
       "quality": 0.97,
-      "latency_ms": 1400,
-      "input_cost_per_million": 2.0,
-      "output_cost_per_million": 12.0,
+      "latency_ms": 3000,
+      "input_cost_per_million": 3.0,
+      "output_cost_per_million": 15.0,
       "capabilities": ["text", "json", "tools"]
     }
   ]
