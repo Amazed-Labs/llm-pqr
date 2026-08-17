@@ -1,95 +1,50 @@
-# Hermes Agent as a Consumer of LLM-PQR
+# A Hermes policy-routing pilot informed by LLM-PQR
 
 > By Amazed Labs — Dov Ginsburg
 
-LLM-PQR's selection core is provider-neutral: it takes a set of declared candidates with their measured quality, latency, cost, and a local-flag, then computes a weighted score against user-declared priority weights (cost, speed, accuracy, privacy 1–10). It returns an explainable recommendation.
+LLM-PQR is a small, provider-neutral, offline selection core: you declare candidates and measured attributes, set the trade-offs you care about, and get an explainable recommendation.
 
-[Hermes Agent](https://github.com/NousResearch/hermes-agent) is one real-world consumer of that core. This document describes how.
+A private [Hermes Agent](https://github.com/NousResearch/hermes-agent) pilot explores how those same *policy-routing questions* behave at message ingress. This is **not** a public Hermes integration and Hermes does not import LLM-PQR as a runtime dependency. It is an independently evolved pilot informed by the same idea: model selection should be an explicit policy under capability constraints, not a hidden vendor-to-model map.
 
-## Why
+## Why explore this
 
-Hermes routes inbound prompts across heterogeneous LLM backends — cloud providers with different cost/quality profiles, plus optionally local models for sensitive work. The two pressures that drove this integration:
+A message router needs to distinguish two kinds of decisions:
 
-- **Local-only work must stay local.** When a message contains credentials, health information, finance, or an explicit "do not send to cloud" marker, the router must fail closed or route to a local model — never silently degrade to a hosted provider.
-- **Ordinary work should follow user-declared preferences.** Cost, speed, accuracy, and privacy are trade-offs; the user should control the weights, not the application developer.
+- **Hard constraints.** Sensitive content must remain on an authorized local route; consequential work needs a route that meets its required capability floor. If no eligible route exists, the engine must refuse rather than silently weaken that constraint.
+- **Ordinary trade-offs.** For work without a hard constraint, a user can express the relative importance of cost, speed, accuracy, and privacy. The selection mechanism should make that preference legible and testable.
 
-## The integration
+## The pilot architecture
 
-Hermes' `gateway/ingress_routing.py` runs an LLM-PQR-equivalent score per turn:
+The Hermes-side router is deliberately layered:
 
-| Layer | What it does | Caller authority |
-|---|---|---|
-| Caller-asserted classification (optional) | External code (e.g. tool-using agents, structured signals) asserts "this is private / consequential / routine" | **Authoritative** when supplied; regex chain is the fallback |
-| Restrictive regex classifier | Default heuristic layer: private → local; consequential → high-capability; mechanical → low-cost; everything else → weighted ordinary | Fallback only |
-| Weighted ordinary selection | `argmax_routes Σ pref · profile[r]` over a per-route capability profile | Always applied to `routine:ordinary` |
-
-Both the layer separation and the fail-closed behavior follow LLM-PQR's stated design: routing is a *policy* expressed against *capability constraints*, not a hardcoded map from vendor to model name.
-
-## Verified routing behavior
-
-Each row is from `PQRIngressRouter.select()` against the five configured routes (`qwen`, `luna`, `terra`, `sol`, `minimax`) with `preferences={cost:8, speed:6, accuracy:7, privacy:5}`:
-
-| Prompt class | Selected | Reason tag |
-|---|---|---|
-| "Explain how rainbows form" | `minimax` | `routine:weighted-minimax` |
-| "hello how are you" | `minimax` | `routine:weighted-minimax` |
-| "Deploy this to production" | `sol` | `consequential:production-change` |
-| "Summarize in exactly six words: …" | `luna` | `mechanical:bounded-summary` |
-| "My API key is sk-abc123, debug it" | `qwen` | `private:credential` |
-
-Preference-dominant sweep on the same prompt ("Explain how rainbows form"):
-
-| Dominant preference | Selected |
+| Layer | Behavior |
 |---|---|
-| cost=10 | `luna` |
-| speed=10 | `luna` |
-| accuracy=10 | `sol` |
-| privacy=10 | `terra` |
-| defaults (cost=8, speed=6, accuracy=7, privacy=5) | `minimax` |
+| Call analysis | Derives complexity, risk, domain, intent, and a permitted model floor/ceiling window without calling a provider. |
+| Caller assertion (optional) | Programmatic callers may supply a `CallAnalysis` when they have an authoritative structured classification; it takes precedence over the heuristic analysis. |
+| Constraint enforcement | Private caller assertions require the local route; consequential caller assertions require the high-capability route. Missing required routes raise a structured `NoEligibleRouteError`. |
+| Ordinary selection | Eligible routes are selected inside the analysis window using the configured user weights. |
+| Rewrite monotonicity | If a prepared prompt requires a more restrictive route, it can upgrade the decision but cannot downgrade it. |
 
-## Configuration
+This is policy-based routing with capability constraints. It is not a claim that a specific vendor/model pairing is universally optimal.
 
-Hermes-side, in `~/.hermes/profiles/<name>/config.yaml` under `ingress_routing:`:
+## What is verified
 
-```yaml
-ingress_routing:
-  enabled: true
-  store_path: ~/.hermes/profiles/<name>/gateway/ingress_routes.json
-  preferences:
-    cost: 8
-    speed: 6
-    accuracy: 7
-    privacy: 5
-  routes:
-    qwen:
-      model: qwen3.6-35b-a3b-local
-      provider: custom:local-qwen
-      local: true
-      base_url: http://127.0.0.1:11434/v1
-    luna:
-      model: gpt-5.6-luna
-      provider: openai-codex
-    terra:
-      model: gpt-5.6-terra
-      provider: openai-codex
-    sol:
-      model: gpt-5.6-sol
-      provider: openai-codex
-    minimax:
-      model: MiniMax-M3
-      provider: minimax-oauth
-```
+As of the private pilot commit `6a5638594c`:
 
-## Privacy posture
+- **82/82** focused `tests/gateway/test_ingress_routing.py` tests pass.
+- The focused suite covers caller assertions, missing-local and missing-high-capability fail-closed paths, monotonic prepared-prompt upgrades, weighted ordinary selection, route-store behavior, and logging metadata with prompt canaries.
+- Structured ingress logging records route IDs, reason codes, caller-assertion status, prepared-route outcome, and score — **never raw prompt text**.
+- The test result validates routing logic only. It is not a public cost, latency, quality, or provider benchmark, and the private pilot is not a production-release claim.
 
-- Sensitive content is detected by the regex layer and pinned to a local route. No prompt text is sent to cloud providers in that case.
-- Non-prompt logging only: structured logger emits `route`, `reason`, `score`, `caller_asserted` fields — never the prompt string itself.
-- Caller-asserted constraints *override* the regex chain; the engine fails closed when no eligible route satisfies them.
+## Privacy and safety posture
+
+- Heuristic detection is a conservative fallback; an authoritative caller assertion takes precedence when one is supplied programmatically.
+- If an asserted private request has no authorized local route, the engine fails closed with `no-eligible-route:private`.
+- If an asserted consequential request has no high-capability route, the engine fails closed with `no-eligible-route:consequential`.
+- Ordinary requests may select the best eligible route within their window rather than being refused merely because an optional route is absent.
 
 ## Status
 
-The integration is currently in a private pilot branch on the Hermes fork (`feature/llm-pqr-mbp-pilot-20260813`). The LLM-PQR CLI itself ships independent of Hermes at `pip install llm-pqr` and at [github.com/Amazed-Labs/llm-pqr](https://github.com/Amazed-Labs/llm-pqr).
-
-<!-- TODO: re-verify after Phase 1b lands. The preference-sweep table above and the "84+ routing tests green" claim were generated against an early-baseline router; the canonical Hermes pilot has a richer CallAnalysis/select_route architecture. Numbers may change; the structural description should not. -->
+The Hermes work remains a private pilot on the `feature/llm-pqr-mbp-pilot-20260813` branch. LLM-PQR itself remains an independent alpha CLI: [github.com/Amazed-Labs/llm-pqr](https://github.com/Amazed-Labs/llm-pqr).
 
 — Amazed Labs — Dov Ginsburg
