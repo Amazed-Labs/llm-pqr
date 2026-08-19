@@ -25,6 +25,36 @@ llm-pqr choose \
   --output-tokens 300
 ```
 
+## Make the first result useful
+
+`init` intentionally creates placeholders: LLM-PQR never guesses a provider,
+model, price, or quality score for you. Replace the generated candidate with
+one model you already use and values you have measured or verified. For example:
+
+```json
+{
+  "priorities": {"cost": 8, "latency": 6, "quality": 7},
+  "models": [
+    {
+      "id": "my-local-model",
+      "provider": "my-local-runtime",
+      "model": "my-model-name",
+      "local": true,
+      "quality": 0.72,
+      "latency_ms": 850,
+      "input_cost_per_million": 0,
+      "output_cost_per_million": 0,
+      "capabilities": ["text", "json"]
+    }
+  ]
+}
+```
+
+Then re-run `llm-pqr choose` with your expected input and output token counts.
+The numbers above are an editable example, not a ranking or a claim about any
+model. See [Giving useful feedback](docs/giving-useful-feedback.md) if a
+constraint, capability label, or output was missing for your setup.
+
 For a more realistic reproducible example after cloning the repository:
 
 ```bash
@@ -150,6 +180,13 @@ uv run --with ruff ruff format --check src tests
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md).
+
+## Feedback
+
+If you tried LLM-PQR, please [open a feedback issue](https://github.com/Amazed-Labs/llm-pqr/issues/new?template=first-run-feedback.md)
+with one model constraint, capability, or recommendation that did not fit your
+setup. Reports about missing constraints are especially useful; do not include
+API keys, private prompts, customer data, or internal endpoints.
 
 ## Project and attribution
 
