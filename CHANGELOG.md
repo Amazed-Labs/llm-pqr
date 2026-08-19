@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add a first-run configuration example and a focused feedback path for missing
+  routing constraints and capabilities.
+
 ## 0.2.0 — 2026-08-17
 
 - Add `docs/integrations/hermes-as-consumer.md` documenting the private
