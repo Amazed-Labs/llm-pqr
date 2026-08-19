@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 — 2026-08-19
 
 - Add a first-run configuration example and a focused feedback path for missing
   routing constraints and capabilities.
