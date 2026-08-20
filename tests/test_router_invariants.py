@@ -138,6 +138,19 @@ def test_router_no_eligible_candidates_raises_clear_error():
         ).choose(Request(local_only=True))
 
 
+def test_router_excludes_candidates_from_rate_limited_provider():
+    decision = Router(
+        [
+            _candidate(id="limited", provider="provider-a", quality=1.0),
+            _candidate(id="healthy", provider="provider-b", quality=0.6),
+        ],
+        Priorities(quality=1, cost=0, latency=0),
+    ).choose(Request(unavailable_providers=frozenset({"provider-a"})))
+
+    assert decision.candidate.provider == "provider-b"
+    assert decision.excluded == {"limited": "provider unavailable"}
+
+
 # --- CLI roundtrip (init -> load -> choose) ----------------------------------
 
 

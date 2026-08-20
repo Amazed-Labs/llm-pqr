@@ -62,6 +62,7 @@ class Priorities:
 class Request:
     local_only: bool = False
     required_capabilities: frozenset[str] = frozenset()
+    unavailable_providers: frozenset[str] = frozenset()
     estimated_input_tokens: int = 1_000
     estimated_output_tokens: int = 250
 
@@ -111,7 +112,9 @@ class Router:
         eligible: list[ModelCandidate] = []
         excluded: dict[str, str] = {}
         for candidate in self.candidates:
-            if request.local_only and not candidate.local:
+            if candidate.provider in request.unavailable_providers:
+                excluded[candidate.id] = "provider unavailable"
+            elif request.local_only and not candidate.local:
                 excluded[candidate.id] = "not local"
             elif not request.required_capabilities.issubset(candidate.capabilities):
                 excluded[candidate.id] = "missing required capabilities"
