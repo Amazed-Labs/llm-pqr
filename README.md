@@ -105,6 +105,26 @@ llm-pqr choose --config examples/models.json --local-only
 }
 ```
 
+### Avoid a provider pool that is temporarily unavailable
+
+LLM-PQR never calls a provider or reads credentials. If your application already
+knows that a provider is in a rate-limit or quota cooldown, pass that provider
+ID as a hard availability constraint before routing:
+
+```python
+from llm_pqr import Request
+
+request = Request(
+    unavailable_providers=frozenset({"openai-codex"}),
+)
+decision = router.choose(request)
+```
+
+Candidates from an unavailable provider are excluded before weighted scoring,
+with the explanation `provider unavailable`. This prevents a known-cooling-down
+provider from winning only to fail at request time. Your integration remains
+responsible for discovering, expiring, and clearing provider health state.
+
 The values in `examples/models.json` are illustrative, not universal rankings.
 Replace them with measured quality, latency, and verified current prices for
 your models.
@@ -190,7 +210,7 @@ API keys, private prompts, customer data, or internal endpoints.
 
 ## Project and attribution
 
-LLM-PQR was created by **Dov Ginsburg** and is maintained by **AMAZED Labs**.
+LLM-PQR was created by **Dov Ginsburg** and is maintained by **Amazed Labs**.
 The canonical project is [Amazed-Labs/llm-pqr](https://github.com/Amazed-Labs/llm-pqr).
 
 If you use, modify, or redistribute LLM-PQR, please preserve the copyright and
