@@ -57,8 +57,10 @@ def test_summarize_prints_privacy_safe_metrics_summary(tmp_path, capsys):
         )
         + "\n"
     )
+    taxonomy = tmp_path / "taxonomy.json"
+    taxonomy.write_text(json.dumps({"routes": ["terra"], "reasons": ["routine:ordinary"]}) + "\n")
 
-    assert main(["summarize", str(target)]) == 0
+    assert main(["summarize", str(target), "--taxonomy", str(taxonomy)]) == 0
     output = json.loads(capsys.readouterr().out)
     assert output["rows"] == 1
     assert output["routes"]["terra"]["latency_ms"]["p95"] == 125.0

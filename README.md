@@ -161,14 +161,17 @@ llm-pqr choose --config models.json --require tools
 Summarize content-free route telemetry before or alongside a full evaluation:
 
 ```bash
-llm-pqr summarize tests/fixtures/pre-llm-pqr-evals.jsonl
+llm-pqr summarize tests/fixtures/pre-llm-pqr-evals.jsonl \
+  --taxonomy tests/fixtures/pre-llm-pqr-taxonomy.json
 ```
 
 The summarizer accepts only `route`, `reason`, `latency_ms`, and `outcome`.
-Route and reason values must be bounded taxonomy tokens; prompts, responses,
-identifiers, paths, and every unexpected field are rejected. Latency percentiles
-cover every accepted outcome, including failed, interrupted, and policy-blocked
-attempts, so operational tail latency is not success-biased.
+It also requires a trusted, explicit allowlist of route and reason values. Unknown
+values—including encoded text and identifier-shaped tokens—are rejected rather
+than copied into output. Prompts, responses, identifiers, paths, and every
+unexpected field are rejected. Latency percentiles cover every accepted outcome,
+including failed, interrupted, and policy-blocked attempts, so operational tail
+latency is not success-biased.
 
 The command returns JSON containing the selected model, excluded candidates, a score, the estimated cost (when rates are supplied), and normalized priority weights.
 

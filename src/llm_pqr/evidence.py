@@ -27,7 +27,12 @@ def _percentile(values: list[float], fraction: float) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
 
 
-def _validated_row(raw: Any, line_number: int) -> dict[str, Any]:
+def _validated_row(
+    raw: Any,
+    line_number: int,
+    allowed_routes: frozenset[str],
+    allowed_reasons: frozenset[str],
+) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise TypeError(f"line {line_number}: expected a JSON object")
     unexpected = sorted(set(raw) - _ALLOWED_FIELDS)
@@ -40,10 +45,14 @@ def _validated_row(raw: Any, line_number: int) -> dict[str, Any]:
         raise TypeError(f"line {line_number}: route must be a string")
     if _ROUTE_TOKEN.fullmatch(raw["route"]) is None:
         raise ValueError(f"line {line_number}: route must be a bounded taxonomy token")
+    if raw["route"] not in allowed_routes:
+        raise ValueError(f"line {line_number}: route is not in the allowed taxonomy")
     if not isinstance(raw["reason"], str):
         raise TypeError(f"line {line_number}: reason must be a string")
     if _REASON_TOKEN.fullmatch(raw["reason"]) is None:
         raise ValueError(f"line {line_number}: reason must be a bounded taxonomy token")
+    if raw["reason"] not in allowed_reasons:
+        raise ValueError(f"line {line_number}: reason is not in the allowed taxonomy")
     if raw["outcome"] not in _ALLOWED_OUTCOMES:
         raise ValueError(f"line {line_number}: invalid outcome")
     latency = raw["latency_ms"]
@@ -55,8 +64,19 @@ def _validated_row(raw: Any, line_number: int) -> dict[str, Any]:
     return {**raw, "route": raw["route"].strip(), "latency_ms": latency}
 
 
-def summarize_metrics(path: str | Path) -> dict[str, Any]:
-    """Summarize content-free JSONL and reject extra content or identity fields."""
+def summarize_metrics(
+    path: str | Path,
+    *,
+    allowed_routes: frozenset[str],
+    allowed_reasons: frozenset[str],
+) -> dict[str, Any]:
+    """Summarize JSONL only when every taxonomy value is explicitly allowed."""
+    if not allowed_routes or not allowed_reasons:
+        raise ValueError("allowed route and reason taxonomies must be non-empty")
+    if any(_ROUTE_TOKEN.fullmatch(value) is None for value in allowed_routes):
+        raise ValueError("allowed routes contain a malformed taxonomy token")
+    if any(_REASON_TOKEN.fullmatch(value) is None for value in allowed_reasons):
+        raise ValueError("allowed reasons contain a malformed taxonomy token")
     rows: list[dict[str, Any]] = []
     for line_number, line in enumerate(Path(path).read_text().splitlines(), 1):
         if not line.strip():
@@ -65,7 +85,7 @@ def summarize_metrics(path: str | Path) -> dict[str, Any]:
             raw = json.loads(line)
         except json.JSONDecodeError as exc:
             raise ValueError(f"line {line_number}: invalid JSON") from exc
-        rows.append(_validated_row(raw, line_number))
+        rows.append(_validated_row(raw, line_number, allowed_routes, allowed_reasons))
     if not rows:
         raise ValueError("metrics file contains no rows")
 

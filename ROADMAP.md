@@ -9,9 +9,9 @@ LLM-PQR is intentionally a small, provider-neutral selection core. This roadmap 
 - Hard exclusion for declared unavailable providers.
 - Optional, non-fabricated token-cost estimation.
 - Synthetic routing corpus with privacy and minimum-coverage gates.
-- Content-free route telemetry summarization.
+- Allowlisted route telemetry summarization that never emits unknown taxonomy values.
 - Measured smoke provenance with explicit non-rankability.
-- Python 3.10–3.13 CI and reproducible package builds.
+- Python 3.10–3.13 CI and verified source/wheel package builds.
 
 ## Next
 

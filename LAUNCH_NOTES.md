@@ -12,7 +12,7 @@ The selector is offline and provider-neutral. It does not send prompts, call pro
 
 - CI across Python 3.10–3.13.
 - A synthetic routing corpus with explicit privacy and ranking gates.
-- A content-free route-metrics summarizer that rejects unexpected fields.
+- A route-metrics summarizer that requires an explicit taxonomy allowlist and rejects unexpected fields or values.
 - A bounded measured smoke summary with immutable source and corpus hashes.
 - Real measured quality and median latency in `examples/models.json`.
 - Unknown usage and cost remain `null`.
@@ -72,7 +72,7 @@ https://github.com/Amazed-Labs/llm-pqr
 
 - [x] Public repository and MIT license
 - [x] CI badge and Python 3.10–3.13 matrix
-- [x] Deterministic tests, Ruff, formatting, and build checks
+- [x] Deterministic tests, Ruff, formatting, and verified build checks
 - [x] Synthetic corpus and content-free telemetry fixture
 - [x] Measured smoke provenance and non-rankability disclosure
 - [x] Security, contribution, continuity, and roadmap documentation

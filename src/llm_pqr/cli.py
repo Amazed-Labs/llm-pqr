@@ -99,7 +99,30 @@ def _init(args: argparse.Namespace) -> int:
 
 
 def _summarize(args: argparse.Namespace) -> int:
-    print(json.dumps(summarize_metrics(args.metrics), indent=2, sort_keys=True))
+    try:
+        taxonomy = json.loads(Path(args.taxonomy).read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"could not read taxonomy JSON: {exc}") from exc
+    if not isinstance(taxonomy, dict) or set(taxonomy) != {"routes", "reasons"}:
+        raise TypeError("taxonomy requires exactly 'routes' and 'reasons'")
+    routes = taxonomy["routes"]
+    reasons = taxonomy["reasons"]
+    if (
+        not isinstance(routes, list)
+        or not isinstance(reasons, list)
+        or not routes
+        or not reasons
+        or any(not isinstance(value, str) for value in [*routes, *reasons])
+        or len(set(routes)) != len(routes)
+        or len(set(reasons)) != len(reasons)
+    ):
+        raise TypeError("taxonomy routes and reasons must be non-empty unique string lists")
+    summary = summarize_metrics(
+        args.metrics,
+        allowed_routes=frozenset(routes),
+        allowed_reasons=frozenset(reasons),
+    )
+    print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
 
 
@@ -121,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     choose.set_defaults(handler=_choose)
     summarize = sub.add_parser("summarize", help="summarize content-free route metadata from JSONL")
     summarize.add_argument("metrics", help="content-free JSONL file")
+    summarize.add_argument("--taxonomy", required=True, help="trusted route/reason allowlist JSON")
     summarize.set_defaults(handler=_summarize)
     args = parser.parse_args(argv)
     try:
