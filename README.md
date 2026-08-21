@@ -1,5 +1,7 @@
 # LLM-PQR
 
+[![CI](https://github.com/Amazed-Labs/llm-pqr/actions/workflows/ci.yml/badge.svg)](https://github.com/Amazed-Labs/llm-pqr/actions/workflows/ci.yml)
+
 **Test your models. Pick with evidence.**
 
 LLM-PQR is a small, provider-neutral tool for choosing among *your* models. You declare each model's measured quality, latency, token prices, capabilities, and whether it is local. Then you choose how much you value cost, speed, and quality. LLM-PQR produces an explainable recommendation without calling a provider or handling credentials.
@@ -12,7 +14,7 @@ Model choice is contextual. A low-cost local model may be ideal for private tran
 
 ## Real-world reference
 
-A private [Hermes Agent policy-routing pilot](docs/integrations/hermes-as-consumer.md) explores the same bounded-routing questions LLM-PQR answers: hard local-only constraints, capability floors, monotonic rewrites, and content-free route logging. The pilot is independent of this package; LLM-PQR does not import, link, or run it, and the document makes no production or benchmark claims.
+A private [Hermes Agent policy-routing pilot](docs/integrations/hermes-as-consumer.md) explores the same bounded-routing questions LLM-PQR answers: hard local-only constraints, capability floors, monotonic rewrites, and content-free route logging. The pilot is independent of this package; LLM-PQR does not import, link, or run it, and the document makes no production or benchmark claims. See [PQR continuity](docs/pqr-continuity.md) for the consumer boundary: selecting a model must not silently alter an agent's context, memory, identity, or tools.
 
 ## Quick start
 
@@ -55,7 +57,7 @@ The numbers above are an editable example, not a ranking or a claim about any
 model. See [Giving useful feedback](docs/giving-useful-feedback.md) if a
 constraint, capability label, or output was missing for your setup.
 
-For a more realistic reproducible example after cloning the repository:
+The checked-in example is a **real bounded smoke run**, not a placeholder:
 
 ```bash
 llm-pqr choose \
@@ -64,27 +66,41 @@ llm-pqr choose \
   --output-tokens 300
 ```
 
-With the checked-in illustrative configuration, cost is weighted `8/10`, speed
-`6/10`, and quality `7/10`. LLM-PQR recommends the local-illustrative candidate
-because cost and latency are weighted most heavily and the local candidate has
-zero token cost:
+The source run used the synthetic `routing-v1` corpus on an Apple M1 Max MBP.
+`examples/measured-smoke-20260814.json` contains 24 sanitized normalized rows plus
+the run ID, corpus and private-source artifact hashes, sample counts, rubric pass
+rates, and median wall-clock latency. The checked-in rows let anyone audit the
+published aggregate with:
+
+```bash
+python examples/verify_measured_smoke.py
+```
+
+The raw source artifact is not published because it contains model responses and
+command envelopes; its hash is a provenance binding, not a claim that the private
+artifact is independently retrievable. Usage and cost remain `null` because the
+adapter emitted no machine-readable usage. Each candidate has only five or six
+valid responses, below the corpus's minimum-N gate, so this is bounded integration
+evidence—not a model ranking.
+
+With cost disabled because it was unmeasured, and latency/quality weighted
+`4/6`, the example selects `sol`:
 
 ```json
 {
-  "estimated_cost_usd": 0.0,
-  "explanation": "Selected local-illustrative: best weighted score; estimated cost: $0.000000; priority weights: cost=0.38, latency=0.29, quality=0.33.",
-  "score": 0.797619,
+  "estimated_cost_usd": null,
+  "score": 0.60335,
   "selected": {
-    "id": "local-illustrative",
-    "local": true,
-    "model": "your-local-model",
-    "provider": "your-local-runtime"
+    "id": "sol",
+    "local": false,
+    "model": "gpt-5.6-sol",
+    "provider": "openai-codex"
   }
 }
 ```
 
-Add `--local-only` and hosted candidates become ineligible rather than merely
-receiving a lower privacy score:
+Add `--local-only` and every hosted candidate becomes ineligible rather than
+receiving a lower privacy score. The measured local candidate is selected:
 
 ```bash
 llm-pqr choose --config examples/models.json --local-only
@@ -93,14 +109,15 @@ llm-pqr choose --config examples/models.json --local-only
 ```json
 {
   "excluded": {
-    "economy-illustrative": "not local",
-    "frontier-illustrative": "not local"
+    "luna": "not local",
+    "sol": "not local",
+    "terra": "not local"
   },
   "selected": {
-    "id": "local-illustrative",
+    "id": "local-qwen",
     "local": true,
-    "model": "your-local-model",
-    "provider": "your-local-runtime"
+    "model": "qwen3.6-35b-a3b-local",
+    "provider": "local-qwen"
   }
 }
 ```
@@ -125,9 +142,9 @@ with the explanation `provider unavailable`. This prevents a known-cooling-down
 provider from winning only to fail at request time. Your integration remains
 responsible for discovering, expiring, and clearing provider health state.
 
-The values in `examples/models.json` are illustrative, not universal rankings.
-Replace them with measured quality, latency, and verified current prices for
-your models.
+The values in `examples/models.json` are measured from one bounded smoke run,
+not universal rankings. Use the checked-in sanitized rows to verify the published
+aggregate, then replace it with measurements and verified prices for your workload.
 
 Create a fresh editable configuration with:
 
@@ -140,6 +157,21 @@ Require a capability when needed:
 ```bash
 llm-pqr choose --config models.json --require tools
 ```
+
+Summarize content-free route telemetry before or alongside a full evaluation:
+
+```bash
+llm-pqr summarize tests/fixtures/pre-llm-pqr-evals.jsonl \
+  --taxonomy tests/fixtures/pre-llm-pqr-taxonomy.json
+```
+
+The summarizer accepts only `route`, `reason`, `latency_ms`, and `outcome`.
+It also requires a trusted, explicit allowlist of route and reason values. Unknown
+values—including encoded text and identifier-shaped tokens—are rejected rather
+than copied into output. Prompts, responses, identifiers, paths, and every
+unexpected field are rejected. Latency percentiles cover every accepted outcome,
+including failed, interrupted, and policy-blocked attempts, so operational tail
+latency is not success-biased.
 
 The command returns JSON containing the selected model, excluded candidates, a score, the estimated cost (when rates are supplied), and normalized priority weights.
 
@@ -199,7 +231,7 @@ uv run --with ruff ruff check src tests
 uv run --with ruff ruff format --check src tests
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md), [SECURITY.md](SECURITY.md), [CHANGELOG.md](CHANGELOG.md), and the prepared [launch notes](LAUNCH_NOTES.md).
 
 ## Feedback
 

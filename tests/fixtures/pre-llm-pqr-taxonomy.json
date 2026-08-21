@@ -1,0 +1,9 @@
+{
+  "routes": ["minimax", "terra", "qwen", "sol"],
+  "reasons": [
+    "routine:ordinary",
+    "complex:code",
+    "private:local-only",
+    "consequential:external-action"
+  ]
+}
