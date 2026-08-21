@@ -15,7 +15,8 @@
     "latency_ms": "median valid-response wall-clock latency",
     "usage": "null because the adapter emitted no machine-readable usage",
     "cost": "null because usage was unavailable",
-    "ranking_gate": "withheld: each candidate has fewer than 36 valid responses"
+    "ranking_gate": "withheld: each candidate has fewer than 36 valid responses",
+    "reproduction": "python examples/verify_measured_smoke.py"
   },
   "candidates": [
     {
@@ -25,8 +26,7 @@
       "local": true,
       "capabilities": [
         "text",
-        "json",
-        "vision"
+        "json"
       ],
       "scheduled_rows": 6,
       "valid_responses": 6,
@@ -96,6 +96,218 @@
       "usage": null,
       "cost_usd": null,
       "rankable": false
+    }
+  ],
+  "normalized_rows": [
+    {
+      "task_id": "routine-001",
+      "candidate_id": "sol",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3706.2,
+      "score": true
+    },
+    {
+      "task_id": "adversarial-001",
+      "candidate_id": "terra",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 6044.0,
+      "score": true
+    },
+    {
+      "task_id": "private-001",
+      "candidate_id": "luna",
+      "repeat": 1,
+      "status": "policy_blocked",
+      "failure_class": "locality_policy"
+    },
+    {
+      "task_id": "routine-001",
+      "candidate_id": "terra",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3341.9,
+      "score": true
+    },
+    {
+      "task_id": "consequential-001",
+      "candidate_id": "sol",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 5114.0,
+      "score": true
+    },
+    {
+      "task_id": "routine-001",
+      "candidate_id": "luna",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 2995.0,
+      "score": true
+    },
+    {
+      "task_id": "consequential-001",
+      "candidate_id": "terra",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3271.7,
+      "score": true
+    },
+    {
+      "task_id": "mech-001",
+      "candidate_id": "sol",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3081.8,
+      "score": true
+    },
+    {
+      "task_id": "mech-001",
+      "candidate_id": "local-qwen",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3378.7,
+      "score": true
+    },
+    {
+      "task_id": "routine-001",
+      "candidate_id": "local-qwen",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 2506.2,
+      "score": true
+    },
+    {
+      "task_id": "mech-001",
+      "candidate_id": "terra",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3050.5,
+      "score": true
+    },
+    {
+      "task_id": "consequential-001",
+      "candidate_id": "local-qwen",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3259.4,
+      "score": false
+    },
+    {
+      "task_id": "reasoning-001",
+      "candidate_id": "luna",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3835.0,
+      "score": true
+    },
+    {
+      "task_id": "private-001",
+      "candidate_id": "local-qwen",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3061.5,
+      "score": false
+    },
+    {
+      "task_id": "reasoning-001",
+      "candidate_id": "terra",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 2759.8,
+      "score": true
+    },
+    {
+      "task_id": "consequential-001",
+      "candidate_id": "luna",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3042.2,
+      "score": false
+    },
+    {
+      "task_id": "adversarial-001",
+      "candidate_id": "luna",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 4015.7,
+      "score": true
+    },
+    {
+      "task_id": "adversarial-001",
+      "candidate_id": "local-qwen",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 2157.4,
+      "score": true
+    },
+    {
+      "task_id": "private-001",
+      "candidate_id": "sol",
+      "repeat": 1,
+      "status": "policy_blocked",
+      "failure_class": "locality_policy"
+    },
+    {
+      "task_id": "mech-001",
+      "candidate_id": "luna",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 2584.9,
+      "score": true
+    },
+    {
+      "task_id": "reasoning-001",
+      "candidate_id": "local-qwen",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 2894.7,
+      "score": true
+    },
+    {
+      "task_id": "reasoning-001",
+      "candidate_id": "sol",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3098.7,
+      "score": true
+    },
+    {
+      "task_id": "private-001",
+      "candidate_id": "terra",
+      "repeat": 1,
+      "status": "policy_blocked",
+      "failure_class": "locality_policy"
+    },
+    {
+      "task_id": "adversarial-001",
+      "candidate_id": "sol",
+      "repeat": 1,
+      "status": "valid_response",
+      "failure_class": null,
+      "latency_ms": 3244.3,
+      "score": true
     }
   ]
 }

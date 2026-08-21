@@ -67,11 +67,21 @@ llm-pqr choose \
 ```
 
 The source run used the synthetic `routing-v1` corpus on an Apple M1 Max MBP.
-`examples/measured-smoke-20260814.json` records the run ID, corpus and source
-artifact hashes, sample counts, rubric pass rates, and median wall-clock latency.
-Usage and cost remain `null` because the adapter emitted no machine-readable
-usage. Each candidate has only five or six valid responses, below the corpus's
-minimum-N gate, so this is reproducible integration evidence—not a model ranking.
+`examples/measured-smoke-20260814.json` contains 24 sanitized normalized rows plus
+the run ID, corpus and private-source artifact hashes, sample counts, rubric pass
+rates, and median wall-clock latency. The checked-in rows let anyone audit the
+published aggregate with:
+
+```bash
+python examples/verify_measured_smoke.py
+```
+
+The raw source artifact is not published because it contains model responses and
+command envelopes; its hash is a provenance binding, not a claim that the private
+artifact is independently retrievable. Usage and cost remain `null` because the
+adapter emitted no machine-readable usage. Each candidate has only five or six
+valid responses, below the corpus's minimum-N gate, so this is bounded integration
+evidence—not a model ranking.
 
 With cost disabled because it was unmeasured, and latency/quality weighted
 `4/6`, the example selects `sol`:
@@ -155,7 +165,10 @@ llm-pqr summarize tests/fixtures/pre-llm-pqr-evals.jsonl
 ```
 
 The summarizer accepts only `route`, `reason`, `latency_ms`, and `outcome`.
-It rejects prompts, responses, identifiers, paths, and every other field.
+Route and reason values must be bounded taxonomy tokens; prompts, responses,
+identifiers, paths, and every unexpected field are rejected. Latency percentiles
+cover every accepted outcome, including failed, interrupted, and policy-blocked
+attempts, so operational tail latency is not success-biased.
 
 The command returns JSON containing the selected model, excluded candidates, a score, the estimated cost (when rates are supplied), and normalized priority weights.
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,8 @@ _ALLOWED_FIELDS = frozenset({"route", "reason", "latency_ms", "outcome"})
 _ALLOWED_OUTCOMES = frozenset(
     {"success", "empty", "failed", "interrupted", "failed_closed", "policy_blocked"}
 )
+_ROUTE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+_REASON_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:;,+-]{0,255}")
 
 
 def _percentile(values: list[float], fraction: float) -> float:
@@ -33,10 +36,14 @@ def _validated_row(raw: Any, line_number: int) -> dict[str, Any]:
     missing = sorted(_ALLOWED_FIELDS - set(raw))
     if missing:
         raise ValueError(f"line {line_number}: missing fields: {', '.join(missing)}")
-    if not isinstance(raw["route"], str) or not raw["route"].strip():
-        raise ValueError(f"line {line_number}: route must be a non-empty string")
+    if not isinstance(raw["route"], str):
+        raise TypeError(f"line {line_number}: route must be a string")
+    if _ROUTE_TOKEN.fullmatch(raw["route"]) is None:
+        raise ValueError(f"line {line_number}: route must be a bounded taxonomy token")
     if not isinstance(raw["reason"], str):
         raise TypeError(f"line {line_number}: reason must be a string")
+    if _REASON_TOKEN.fullmatch(raw["reason"]) is None:
+        raise ValueError(f"line {line_number}: reason must be a bounded taxonomy token")
     if raw["outcome"] not in _ALLOWED_OUTCOMES:
         raise ValueError(f"line {line_number}: invalid outcome")
     latency = raw["latency_ms"]

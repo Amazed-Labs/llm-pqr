@@ -57,3 +57,27 @@ def test_summarize_metrics_rejects_non_finite_latency(tmp_path):
 
     with pytest.raises(ValueError, match="finite and non-negative"):
         summarize_metrics(path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("route", "user:dov@example.test/private/prompt"),
+        ("route", "contains spaces"),
+        ("reason", "private response text"),
+        ("reason", "reason\nforged-line"),
+    ],
+)
+def test_summarize_metrics_rejects_content_shaped_taxonomy_values(tmp_path, field, value):
+    path = tmp_path / "unsafe-value.jsonl"
+    row = {
+        "route": "terra",
+        "reason": "routine:ordinary",
+        "latency_ms": 100,
+        "outcome": "success",
+    }
+    row[field] = value
+    path.write_text(json.dumps(row) + "\n")
+
+    with pytest.raises(ValueError, match=f"{field} must be a bounded taxonomy token"):
+        summarize_metrics(path)

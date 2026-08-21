@@ -33,6 +33,8 @@ def test_example_is_derived_from_checked_in_measured_summary():
         source = by_id[model["id"]]
         assert model["provider"] == source["provider"]
         assert model["model"] == source["model"]
+        assert model["local"] == source["local"]
+        assert model["capabilities"] == source["capabilities"]
         assert model["quality"] == source["quality"]
         assert model["latency_ms"] == source["latency_ms"]
         assert "input_cost_per_million" not in model
@@ -53,6 +55,17 @@ def test_measured_summary_has_no_content_identity_or_credential_fields():
                 yield from keys(item)
 
     assert forbidden.isdisjoint(keys(measured))
+
+
+def test_measured_aggregate_rebuilds_from_sanitized_rows():
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "examples" / "verify_measured_smoke.py")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "verified 24 sanitized rows across 4 candidates" in proc.stdout
 
 
 def test_default_selection_is_reproducible_and_cost_is_unknown():
