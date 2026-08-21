@@ -1,42 +1,51 @@
 {
-  "_comment": "Illustrative example only. Values are not vendor rankings or measurements. Replace with measured quality, latency, and verified current prices from your own evaluation.",
+  "_comment": "Measured bounded smoke example from 2026-08-14. This sample is too small to rank models; replace it with measurements from your workload.",
+  "_provenance": {
+    "summary": "measured-smoke-20260814.json",
+    "quality": "passed deterministic rubrics / valid scored responses",
+    "latency_ms": "median valid-response wall-clock latency",
+    "cost": "unknown because the adapter emitted no machine-readable usage"
+  },
   "priorities": {
-    "cost": 8,
-    "latency": 6,
-    "quality": 7
+    "cost": 0,
+    "latency": 4,
+    "quality": 6
   },
   "models": [
     {
-      "id": "local-illustrative",
-      "provider": "your-local-runtime",
-      "model": "your-local-model",
+      "id": "local-qwen",
+      "provider": "local-qwen",
+      "model": "qwen3.6-35b-a3b-local",
       "local": true,
-      "quality": 0.65,
-      "latency_ms": 900,
-      "input_cost_per_million": 0,
-      "output_cost_per_million": 0,
+      "quality": 0.666667,
+      "latency_ms": 2978.1,
       "capabilities": ["text", "json"]
     },
     {
-      "id": "economy-illustrative",
-      "provider": "your-economy-provider",
-      "model": "your-economy-model",
+      "id": "luna",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-luna",
       "local": false,
-      "quality": 0.85,
-      "latency_ms": 1200,
-      "input_cost_per_million": 0.5,
-      "output_cost_per_million": 1.5,
+      "quality": 0.8,
+      "latency_ms": 3042.2,
       "capabilities": ["text", "json"]
     },
     {
-      "id": "frontier-illustrative",
-      "provider": "your-frontier-provider",
-      "model": "your-frontier-model",
+      "id": "terra",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-terra",
       "local": false,
-      "quality": 0.97,
-      "latency_ms": 3000,
-      "input_cost_per_million": 3.0,
-      "output_cost_per_million": 15.0,
+      "quality": 1.0,
+      "latency_ms": 3271.7,
+      "capabilities": ["text", "json", "tools"]
+    },
+    {
+      "id": "sol",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "local": false,
+      "quality": 1.0,
+      "latency_ms": 3244.3,
       "capabilities": ["text", "json", "tools"]
     }
   ]

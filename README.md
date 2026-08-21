@@ -57,7 +57,7 @@ The numbers above are an editable example, not a ranking or a claim about any
 model. See [Giving useful feedback](docs/giving-useful-feedback.md) if a
 constraint, capability label, or output was missing for your setup.
 
-For a more realistic reproducible example after cloning the repository:
+The checked-in example is a **real bounded smoke run**, not a placeholder:
 
 ```bash
 llm-pqr choose \
@@ -66,27 +66,31 @@ llm-pqr choose \
   --output-tokens 300
 ```
 
-With the checked-in illustrative configuration, cost is weighted `8/10`, speed
-`6/10`, and quality `7/10`. LLM-PQR recommends the local-illustrative candidate
-because cost and latency are weighted most heavily and the local candidate has
-zero token cost:
+The source run used the synthetic `routing-v1` corpus on an Apple M1 Max MBP.
+`examples/measured-smoke-20260814.json` records the run ID, corpus and source
+artifact hashes, sample counts, rubric pass rates, and median wall-clock latency.
+Usage and cost remain `null` because the adapter emitted no machine-readable
+usage. Each candidate has only five or six valid responses, below the corpus's
+minimum-N gate, so this is reproducible integration evidence—not a model ranking.
+
+With cost disabled because it was unmeasured, and latency/quality weighted
+`4/6`, the example selects `sol`:
 
 ```json
 {
-  "estimated_cost_usd": 0.0,
-  "explanation": "Selected local-illustrative: best weighted score; estimated cost: $0.000000; priority weights: cost=0.38, latency=0.29, quality=0.33.",
-  "score": 0.797619,
+  "estimated_cost_usd": null,
+  "score": 0.60335,
   "selected": {
-    "id": "local-illustrative",
-    "local": true,
-    "model": "your-local-model",
-    "provider": "your-local-runtime"
+    "id": "sol",
+    "local": false,
+    "model": "gpt-5.6-sol",
+    "provider": "openai-codex"
   }
 }
 ```
 
-Add `--local-only` and hosted candidates become ineligible rather than merely
-receiving a lower privacy score:
+Add `--local-only` and every hosted candidate becomes ineligible rather than
+receiving a lower privacy score. The measured local candidate is selected:
 
 ```bash
 llm-pqr choose --config examples/models.json --local-only
@@ -95,14 +99,15 @@ llm-pqr choose --config examples/models.json --local-only
 ```json
 {
   "excluded": {
-    "economy-illustrative": "not local",
-    "frontier-illustrative": "not local"
+    "luna": "not local",
+    "sol": "not local",
+    "terra": "not local"
   },
   "selected": {
-    "id": "local-illustrative",
+    "id": "local-qwen",
     "local": true,
-    "model": "your-local-model",
-    "provider": "your-local-runtime"
+    "model": "qwen3.6-35b-a3b-local",
+    "provider": "local-qwen"
   }
 }
 ```
@@ -127,9 +132,9 @@ with the explanation `provider unavailable`. This prevents a known-cooling-down
 provider from winning only to fail at request time. Your integration remains
 responsible for discovering, expiring, and clearing provider health state.
 
-The values in `examples/models.json` are illustrative, not universal rankings.
-Replace them with measured quality, latency, and verified current prices for
-your models.
+The values in `examples/models.json` are measured from one bounded smoke run,
+not universal rankings. Use the checked-in provenance summary to reproduce the
+example, then replace it with measurements and verified prices for your workload.
 
 Create a fresh editable configuration with:
 

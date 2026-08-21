@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "run_id": "5b8a7793cbd24ef9a54344097a3042e5",
+  "observed_at": "2026-08-14",
+  "source_artifact_sha256": "8b6611a243d6a813c524d7464480a87f16832e5bb447ff8fae15514396d9c62b",
+  "corpus_id": "routing-v1",
+  "corpus_sha256": "4313114b167f4ae0180cd37c224d7009fda44d6cbde508348f7a669f5e68b5de",
+  "environment": {
+    "machine": "MacBook Pro",
+    "chip": "Apple M1 Max",
+    "memory_gb": 64
+  },
+  "method": {
+    "quality": "passed deterministic rubrics / valid scored responses",
+    "latency_ms": "median valid-response wall-clock latency",
+    "usage": "null because the adapter emitted no machine-readable usage",
+    "cost": "null because usage was unavailable",
+    "ranking_gate": "withheld: each candidate has fewer than 36 valid responses"
+  },
+  "candidates": [
+    {
+      "id": "local-qwen",
+      "provider": "local-qwen",
+      "model": "qwen3.6-35b-a3b-local",
+      "local": true,
+      "capabilities": [
+        "text",
+        "json",
+        "vision"
+      ],
+      "scheduled_rows": 6,
+      "valid_responses": 6,
+      "policy_blocks": 0,
+      "passed_rubrics": 4,
+      "quality": 0.666667,
+      "latency_ms": 2978.1,
+      "usage": null,
+      "cost_usd": null,
+      "rankable": false
+    },
+    {
+      "id": "luna",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-luna",
+      "local": false,
+      "capabilities": [
+        "text",
+        "json"
+      ],
+      "scheduled_rows": 6,
+      "valid_responses": 5,
+      "policy_blocks": 1,
+      "passed_rubrics": 4,
+      "quality": 0.8,
+      "latency_ms": 3042.2,
+      "usage": null,
+      "cost_usd": null,
+      "rankable": false
+    },
+    {
+      "id": "sol",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "local": false,
+      "capabilities": [
+        "text",
+        "json",
+        "tools"
+      ],
+      "scheduled_rows": 6,
+      "valid_responses": 5,
+      "policy_blocks": 1,
+      "passed_rubrics": 5,
+      "quality": 1.0,
+      "latency_ms": 3244.3,
+      "usage": null,
+      "cost_usd": null,
+      "rankable": false
+    },
+    {
+      "id": "terra",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-terra",
+      "local": false,
+      "capabilities": [
+        "text",
+        "json",
+        "tools"
+      ],
+      "scheduled_rows": 6,
+      "valid_responses": 5,
+      "policy_blocks": 1,
+      "passed_rubrics": 5,
+      "quality": 1.0,
+      "latency_ms": 3271.7,
+      "usage": null,
+      "cost_usd": null,
+      "rankable": false
+    }
+  ]
+}
