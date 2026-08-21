@@ -16,7 +16,7 @@
     "usage": "null because the adapter emitted no machine-readable usage",
     "cost": "null because usage was unavailable",
     "ranking_gate": "withheld: each candidate has fewer than 36 valid responses",
-    "reproduction": "python examples/verify_measured_smoke.py"
+    "verification": "python examples/verify_measured_smoke.py"
   },
   "candidates": [
     {

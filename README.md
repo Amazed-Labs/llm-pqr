@@ -143,8 +143,8 @@ provider from winning only to fail at request time. Your integration remains
 responsible for discovering, expiring, and clearing provider health state.
 
 The values in `examples/models.json` are measured from one bounded smoke run,
-not universal rankings. Use the checked-in provenance summary to reproduce the
-example, then replace it with measurements and verified prices for your workload.
+not universal rankings. Use the checked-in sanitized rows to verify the published
+aggregate, then replace it with measurements and verified prices for your workload.
 
 Create a fresh editable configuration with:
 
