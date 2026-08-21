@@ -215,7 +215,7 @@ uv run --with ruff ruff check src tests
 uv run --with ruff ruff format --check src tests
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md), [SECURITY.md](SECURITY.md), [CHANGELOG.md](CHANGELOG.md), and the prepared [launch notes](LAUNCH_NOTES.md).
 
 ## Feedback
 
