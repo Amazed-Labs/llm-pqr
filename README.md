@@ -1,5 +1,7 @@
 # LLM-PQR
 
+[![CI](https://github.com/Amazed-Labs/llm-pqr/actions/workflows/ci.yml/badge.svg)](https://github.com/Amazed-Labs/llm-pqr/actions/workflows/ci.yml)
+
 **Test your models. Pick with evidence.**
 
 LLM-PQR is a small, provider-neutral tool for choosing among *your* models. You declare each model's measured quality, latency, token prices, capabilities, and whether it is local. Then you choose how much you value cost, speed, and quality. LLM-PQR produces an explainable recommendation without calling a provider or handling credentials.
@@ -140,6 +142,15 @@ Require a capability when needed:
 ```bash
 llm-pqr choose --config models.json --require tools
 ```
+
+Summarize content-free route telemetry before or alongside a full evaluation:
+
+```bash
+llm-pqr summarize tests/fixtures/pre-llm-pqr-evals.jsonl
+```
+
+The summarizer accepts only `route`, `reason`, `latency_ms`, and `outcome`.
+It rejects prompts, responses, identifiers, paths, and every other field.
 
 The command returns JSON containing the selected model, excluded candidates, a score, the estimated cost (when rates are supplied), and normalized priority weights.
 

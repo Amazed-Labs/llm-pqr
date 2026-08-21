@@ -1,0 +1,4 @@
+{"route":"minimax","reason":"routine:ordinary","latency_ms":1200.0,"outcome":"success"}
+{"route":"terra","reason":"complex:code","latency_ms":3100.0,"outcome":"success"}
+{"route":"qwen","reason":"private:local-only","latency_ms":900.0,"outcome":"failed"}
+{"route":"sol","reason":"consequential:external-action","latency_ms":2800.0,"outcome":"interrupted"}

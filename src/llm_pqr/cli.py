@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from . import ModelCandidate, Priorities, Request, Router
+from .evidence import summarize_metrics
 
 EXAMPLE: dict[str, Any] = {
     "priorities": {"cost": 0.35, "latency": 0.25, "quality": 0.40},
@@ -97,6 +98,11 @@ def _init(args: argparse.Namespace) -> int:
     return 0
 
 
+def _summarize(args: argparse.Namespace) -> int:
+    print(json.dumps(summarize_metrics(args.metrics), indent=2, sort_keys=True))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="llm-pqr", description="Test your models. Pick with evidence."
@@ -113,6 +119,9 @@ def main(argv: list[str] | None = None) -> int:
     choose.add_argument("--local-only", action="store_true")
     choose.add_argument("--require", action="append", help="required capability; repeatable")
     choose.set_defaults(handler=_choose)
+    summarize = sub.add_parser("summarize", help="summarize content-free route metadata from JSONL")
+    summarize.add_argument("metrics", help="content-free JSONL file")
+    summarize.set_defaults(handler=_summarize)
     args = parser.parse_args(argv)
     try:
         return args.handler(args)

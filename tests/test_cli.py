@@ -42,3 +42,23 @@ def test_init_writes_editable_example_without_secrets(tmp_path):
     payload = json.loads(target.read_text())
     assert payload["models"]
     assert "api_key" not in target.read_text().lower()
+
+
+def test_summarize_prints_privacy_safe_metrics_summary(tmp_path, capsys):
+    target = tmp_path / "metrics.jsonl"
+    target.write_text(
+        json.dumps(
+            {
+                "route": "terra",
+                "reason": "routine:ordinary",
+                "latency_ms": 125.0,
+                "outcome": "success",
+            }
+        )
+        + "\n"
+    )
+
+    assert main(["summarize", str(target)]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["rows"] == 1
+    assert output["routes"]["terra"]["latency_ms"]["p95"] == 125.0
