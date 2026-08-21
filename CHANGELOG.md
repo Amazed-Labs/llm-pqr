@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — 2026-08-21
+
+- Add `llm-pqr summarize` for allowlisted, content-free route metrics with
+  outcome counts and per-route latency percentiles.
+- Require an explicit trusted route/reason taxonomy and reject unknown,
+  encoded, identifier-shaped, or content-shaped telemetry values.
+- Replace placeholder model examples with a bounded measured smoke aggregate,
+  24 sanitized auditable rows, immutable provenance hashes, and a verifier.
+- Add provider-cooldown exclusions, the model-selection continuity boundary,
+  roadmap and contribution guidance, and evidence-led launch materials.
+- Package every referenced document, example, evaluation fixture, taxonomy,
+  and test in the source distribution.
+
 ## 0.2.1 — 2026-08-19
 
 - Add a first-run configuration example and a focused feedback path for missing
