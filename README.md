@@ -122,6 +122,36 @@ llm-pqr choose --config examples/models.json --local-only
 }
 ```
 
+### Expanded public-text evidence
+
+A later three-repeat run covers 16 public, text-only tasks across all four
+candidates. `examples/measured-public-text-20260822.json` contains all 192
+sanitized normalized rows and can be verified with:
+
+```bash
+python examples/verify_measured_public_text.py
+```
+
+The verifier proves the sanitized row schema, corpus/task matrix, rubric-score
+eligibility, recomputed corpus hash, committed provenance/hash bindings, and
+aggregate arithmetic. It cannot independently judge individual scores or response
+hashes against raw model responses, which remain private.
+
+Every candidate returned 48/48 valid responses (100% reliability and comparable
+coverage). Thirty-six responses per candidate had deterministic exact,
+contains-all, or JSON rubrics:
+
+| Candidate | Passed / scored | Quality conditional on scored | Median latency |
+|---|---:|---:|---:|
+| local-qwen | 31 / 36 | 0.861 | 3.75 s |
+| luna | 33 / 36 | 0.917 | 3.26 s |
+| terra | 33 / 36 | 0.917 | 3.25 s |
+| sol | 34 / 36 | 0.944 | 3.95 s |
+
+This slice passes its minimum-N and coverage gates, but it is not a whole-corpus
+ranking: local-only and vision tasks were excluded, semantic rubrics remain
+unscored, usage and cost are unknown, and no composite winner is reported.
+
 ### Avoid a provider pool that is temporarily unavailable
 
 LLM-PQR never calls a provider or reads credentials. If your application already

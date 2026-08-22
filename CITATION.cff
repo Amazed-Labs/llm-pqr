@@ -5,9 +5,9 @@ type: software
 authors:
   - family-names: Ginsburg
     given-names: Dov
-    affiliation: AMAZED Labs
+    affiliation: Amazed Labs
 repository-code: "https://github.com/Amazed-Labs/llm-pqr"
 url: "https://github.com/Amazed-Labs/llm-pqr"
 license: MIT
-version: 0.2.0
-date-released: 2026-08-17
+version: 0.3.1
+date-released: 2026-08-22

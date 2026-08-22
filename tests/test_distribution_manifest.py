@@ -30,3 +30,25 @@ def test_manifest_includes_referenced_root_artifacts():
     manifest = (REPO / "MANIFEST.in").read_text().splitlines()
     included = {line.removeprefix("include ") for line in manifest if line.startswith("include ")}
     assert ROOT_ARTIFACTS <= included
+
+
+def _match(pattern: str, text: str) -> str:
+    match = re.search(pattern, text, re.MULTILINE)
+    assert match is not None
+    return match.group(1)
+
+
+def test_citation_matches_package_release_metadata():
+    pyproject = (REPO / "pyproject.toml").read_text()
+    citation = (REPO / "CITATION.cff").read_text()
+    changelog = (REPO / "CHANGELOG.md").read_text()
+
+    package_version = _match(r'^version = "([^"]+)"$', pyproject)
+    package_author = _match(r'^authors = \[\{name = "([^"]+)"\}\]$', pyproject)
+    citation_version = _match(r"^version: (\S+)$", citation)
+    citation_date = _match(r"^date-released: (\S+)$", citation)
+    citation_affiliation = _match(r"^    affiliation: (.+)$", citation)
+
+    assert citation_version == package_version
+    assert f"## {package_version} — {citation_date}" in changelog
+    assert citation_affiliation == package_author == "Amazed Labs"
