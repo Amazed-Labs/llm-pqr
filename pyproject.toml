@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llm-pqr"
-version = "0.3.0"
+version = "0.3.1"
 description = "Test your models. Pick with evidence."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{name = "AMAZED Labs"}]
+authors = [{name = "Amazed Labs"}]
 keywords = ["llm", "routing", "model-selection", "benchmarking", "privacy"]
 classifiers = [
   "Development Status :: 3 - Alpha",

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 — 2026-08-22
+
+- Score deterministic `json_exact` and `json_fields` evaluation rubrics,
+  including JSON wrapped in fenced code blocks.
+- Publish a 192-row sanitized public-text benchmark slice with 48/48 valid
+  responses and 36 deterministically scored responses per candidate.
+- Verify the expanded aggregate from checked-in sanitized rows while keeping
+  raw responses, usage, and unsupported cost claims out of the repository.
+
 ## 0.3.0 — 2026-08-21
 
 - Add `llm-pqr summarize` for allowlisted, content-free route metrics with

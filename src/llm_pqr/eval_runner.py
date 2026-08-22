@@ -45,6 +45,39 @@ def schedule(
     return rows
 
 
+def _strict_json_loads(text: str) -> Any:
+    def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    def reject_constant(value: str) -> Any:
+        raise ValueError(f"non-standard JSON constant: {value}")
+
+    return json.loads(
+        text,
+        object_pairs_hook=reject_duplicates,
+        parse_constant=reject_constant,
+    )
+
+
+def _json_type_exact_equal(actual: Any, expected: Any) -> bool:
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return set(actual) == set(expected) and all(
+            _json_type_exact_equal(actual[key], value) for key, value in expected.items()
+        )
+    if isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _json_type_exact_equal(left, right) for left, right in zip(actual, expected)
+        )
+    return actual == expected
+
+
 def _score(task: dict[str, Any], text: str) -> bool | None:
     """Return deterministic smoke-score where the rubric is mechanically decidable."""
     rubric = task["rubric"]
@@ -52,7 +85,36 @@ def _score(task: dict[str, Any], text: str) -> bool | None:
         return text.strip() == rubric["expected"]
     if rubric["kind"] == "contains_all":
         lowered = text.lower()
-        return all(term.lower() in lowered for term in rubric["required"])
+        return all(term.lower() in lowered for term in rubric["required"]) and not any(
+            term.lower() in lowered for term in rubric.get("must_not_include", [])
+        )
+    if rubric["kind"] in {"json_exact", "json_fields"}:
+        candidate = text.strip()
+        if candidate.startswith("```"):
+            lines = candidate.splitlines()
+            if len(lines) < 3 or lines[0] not in {"```", "```json"} or lines[-1] != "```":
+                return False
+            candidate = "\n".join(lines[1:-1]).strip()
+        try:
+            parsed = _strict_json_loads(candidate)
+        except (json.JSONDecodeError, ValueError):
+            return False
+        if rubric["kind"] == "json_exact":
+            return _json_type_exact_equal(parsed, rubric["expected"])
+        if not isinstance(parsed, dict):
+            return False
+        if any(
+            key not in parsed or not _json_type_exact_equal(parsed[key], expected)
+            for key, expected in rubric["expected"].items()
+        ):
+            return False
+        for key, required in rubric.get("required_contains", {}).items():
+            if not isinstance(required, str) or not required or key not in parsed:
+                return False
+            actual = parsed[key]
+            if not isinstance(actual, str) or required.lower() not in actual.lower():
+                return False
+        return True
     return None
 
 
