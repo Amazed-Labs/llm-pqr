@@ -27,7 +27,7 @@ Use the same JSON as `llm-pqr` `models.json`: `priorities` plus a `models` list 
 - `local_only` (boolean) — hard-exclude every non-local candidate
 - `require` (string list) — required capability labels such as `tools` or `vision`
 - `unavailable_providers` (string list) — hard-exclude those provider IDs
-- per-model `base_url` — applied only when the Hermes request already has a `base_url` key
+- per-model `base_url` — for a local candidate, always written onto the rewritten request (not only when the inbound Hermes request already had `base_url`). A local candidate without a usable `base_url` is refused for that turn
 
 Do not put prompts, credentials, or session IDs in this file. LLM-PQR never infers privacy from message text.
 
@@ -35,9 +35,9 @@ Copy `examples/llm-pqr.json` from this plugin and replace every candidate with m
 
 ## What the plugin changes
 
-On each provider call, `llm_request` middleware may rewrite `model`, and `provider` / `base_url` only if those keys already exist. Tools, identity, memory, and conversation are left intact.
+On each provider call, `llm_request` middleware may rewrite `model`. For a local candidate it also writes `provider` and `base_url` so Hermes does not keep its default hosted provider. Hosted candidates may only need a model rewrite. Tools, identity, memory, and conversation are left intact.
 
-If no candidate is eligible, `llm_execution` skips the provider call and returns a refusal-shaped response. That fail-closed behavior is plugin-layer only, not a Hermes-core guarantee.
+If no candidate is eligible, the opt-in config is broken, or routing fails unexpectedly, `llm_execution` skips the provider call and returns a refusal-shaped response. Missing config remains a no-op. That fail-closed behavior is plugin-layer only, not a Hermes-core guarantee.
 
 ## Inspect the last decision
 

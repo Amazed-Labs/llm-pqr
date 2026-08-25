@@ -27,16 +27,18 @@ its current model.
 
 ## Honest limits
 
-- Fail-closed "no eligible route" is a **plugin-layer** behavior. It is
+- Fail-closed "no eligible route", broken config, unexpected routing
+  errors, and block-pop failures are **plugin-layer** behaviors. They are
   not a Hermes-core guarantee. A later Hermes fallback, retry, or
   another plugin could still reach a provider. The refusal object is a
   best-effort match to public Chat Completions / Anthropic / Codex
   response shapes; if Hermes changes those shapes, the refusal may be
   treated as invalid and retried.
-- Middleware that *raises* is fail-open in Hermes. This plugin catches
-  exceptions (including `Router.choose` `ValueError`) so a bug does not
-  crash the agent. Unexpected errors therefore leave the original model
-  in place.
+- Middleware that *raises* is fail-open in Hermes core. This plugin
+  catches exceptions (including `Router.choose` `ValueError` and unexpected
+  errors) so a bug does not crash the agent **and** does not fall through
+  to the original hosted model when an opt-in config is present. Missing
+  config remains a no-op.
 - Token estimates are coarse character-length counts (`chars // 4`).
   They are not tokenizer-accurate. Message text is never copied into
   `llm_pqr.Request`.
@@ -44,9 +46,11 @@ its current model.
   resolved endpoint is local.
 - The plugin does not infer privacy, risk, or capability needs from
   prompt text.
-- Continuity: only `model` is rewritten, plus `provider` / `base_url`
-  when those keys already exist on the request. Tools, identity,
-  memory, and conversation are left intact.
+- Continuity: `model` is rewritten. For a local candidate, `provider`
+  and `base_url` are always written onto the request so Hermes does not
+  keep its default hosted provider. If a local candidate has no usable
+  `base_url`, that turn is refused. Hosted candidates may only need a
+  model rewrite. Tools, identity, memory, and conversation are left intact.
 - No telemetry, phone-home, or usage tracking.
 
 ## Install / copy
@@ -121,8 +125,9 @@ Shape — same as the LLM-PQR CLI `models.json`:
 
 `local_only`, `require`, and `unavailable_providers` are plugin-only
 keys that become `llm_pqr.Request` fields. Per-model `base_url` is also
-plugin-only and is applied only when the Hermes request already has
-`base_url`. Put Hermes-compatible model IDs in `model`.
+plugin-only: for a local candidate it is always written onto the
+rewritten request. A local candidate without a usable `base_url` is
+refused for that turn. Put Hermes-compatible model IDs in `model`.
 
 Do not put API keys or prompts in this file.
 

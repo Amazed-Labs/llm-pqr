@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-from llm_pqr import Request
+from llm_pqr import ModelCandidate, Request
 
 REPO = Path(__file__).resolve().parents[1]
 PLUGIN_ROOT = REPO / "integrations" / "hermes-plugin"
@@ -99,6 +99,25 @@ class FakeCtx:
         self.skills.append((name, Path(path)))
 
 
+def _assert_skips_next_call(adapter, *, api_request_id="blocked"):
+    called = []
+
+    def next_call(request):
+        called.append(request)
+        raise AssertionError("hosted model must not be invoked")
+
+    assert adapter.on_llm_request(_request(), api_request_id=api_request_id) is None
+    response = adapter.on_llm_execution(
+        _request(), next_call=next_call, api_request_id=api_request_id
+    )
+    assert called == []
+    assert CANARY not in str(response.choices[0].message.content)
+    snapshot = adapter.last_decision()
+    assert snapshot is not None
+    assert snapshot["selected"] is None
+    return response
+
+
 def test_missing_config_is_noop(monkeypatch):
     monkeypatch.delenv("LLM_PQR_CONFIG", raising=False)
     adapter = hermes_adapter.RoutingAdapter(
@@ -107,6 +126,15 @@ def test_missing_config_is_noop(monkeypatch):
     )
     result = adapter.on_llm_request(_request())
     assert result is None
+    called = []
+
+    def next_call(request):
+        called.append(request)
+        return SimpleNamespace(ok=True)
+
+    out = adapter.on_llm_execution(_request(), next_call=next_call)
+    assert out.ok is True
+    assert len(called) == 1
 
 
 def test_hermes_home_config_is_used(tmp_path, monkeypatch):
@@ -124,22 +152,24 @@ def test_hermes_home_config_is_used(tmp_path, monkeypatch):
 
 
 def test_rewrites_model_and_preserves_tools_and_messages(tmp_path, monkeypatch):
-    adapter = _adapter(tmp_path, monkeypatch)
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True)
     original = _request()
+    assert "provider" not in original
+    assert "base_url" not in original
     result = adapter.on_llm_request(original)
 
     assert result["source"] == "llm-pqr"
     assert original["messages"][0]["content"] == CANARY
     rewritten = result["request"]
-    assert rewritten["model"] == "hosted-model"
+    assert rewritten["model"] == "local-model"
+    assert rewritten["provider"] == "local-runtime"
+    assert rewritten["base_url"] == "http://127.0.0.1:9/v1"
     assert rewritten["tools"] == original["tools"]
     assert rewritten["messages"] == original["messages"]
     assert rewritten["temperature"] == 0.2
-    assert "provider" not in rewritten
-    assert "base_url" not in rewritten
 
 
-def test_rewrites_provider_and_base_url_only_when_present(tmp_path, monkeypatch):
+def test_overwrites_provider_and_base_url_when_already_present(tmp_path, monkeypatch):
     adapter = _adapter(tmp_path, monkeypatch, local_only=True)
     result = adapter.on_llm_request(
         _request(provider="keep-shape", base_url="http://example.invalid/v1")
@@ -148,6 +178,72 @@ def test_rewrites_provider_and_base_url_only_when_present(tmp_path, monkeypatch)
     assert rewritten["model"] == "local-model"
     assert rewritten["provider"] == "local-runtime"
     assert rewritten["base_url"] == "http://127.0.0.1:9/v1"
+
+
+def test_hosted_rewrite_may_only_change_model(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch)
+    rewritten = adapter.on_llm_request(_request())["request"]
+    assert rewritten["model"] == "hosted-model"
+    assert "provider" not in rewritten
+    assert "base_url" not in rewritten
+
+
+def test_apply_candidate_local_without_inbound_keys_writes_provider_and_base_url():
+    candidate = ModelCandidate(
+        id="local-fast",
+        provider="local-runtime",
+        model="local-model",
+        local=True,
+    )
+    original = {
+        "model": "gpt-5-hosted",
+        "messages": [{"role": "user", "content": CANARY}],
+        "tools": [{"type": "function", "function": {"name": "keep_me"}}],
+        "temperature": 0.2,
+    }
+    rewritten = hermes_adapter.apply_candidate(
+        original, candidate, {"base_url": "http://127.0.0.1:11434/v1"}
+    )
+    assert rewritten["model"] == "local-model"
+    assert rewritten["provider"] == "local-runtime"
+    assert rewritten["base_url"] == "http://127.0.0.1:11434/v1"
+    assert rewritten["messages"] == original["messages"]
+    assert rewritten["tools"] == original["tools"]
+    assert rewritten["temperature"] == 0.2
+    assert original.get("provider") is None
+    assert original.get("base_url") is None
+
+
+def test_apply_candidate_local_without_base_url_raises():
+    candidate = ModelCandidate(
+        id="local-fast",
+        provider="local-runtime",
+        model="local-model",
+        local=True,
+    )
+    try:
+        hermes_adapter.apply_candidate({"model": "gpt-5-hosted"}, candidate, {})
+    except ValueError as exc:
+        assert str(exc) == hermes_adapter.LOCAL_MISSING_BASE_URL_MESSAGE
+    else:
+        raise AssertionError("local rewrite without base_url must fail closed")
+
+
+def test_local_candidate_without_base_url_skips_next_call(tmp_path, monkeypatch):
+    models = [
+        {
+            "id": "local-fast",
+            "provider": "local-runtime",
+            "model": "local-model",
+            "local": True,
+            "quality": 0.4,
+            "latency_ms": 100,
+            "capabilities": ["text"],
+        }
+    ]
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, models=models)
+    response = _assert_skips_next_call(adapter, api_request_id="no-base")
+    assert hermes_adapter.LOCAL_MISSING_BASE_URL_MESSAGE in response.choices[0].message.content
 
 
 def test_router_never_receives_prompt_or_identity(tmp_path, monkeypatch):
@@ -210,7 +306,43 @@ def test_middleware_swallows_router_exceptions(tmp_path, monkeypatch):
         environ={"LLM_PQR_CONFIG": str(config)},
         choose=choose,
     )
-    assert adapter.on_llm_request(_request()) is None
+    response = _assert_skips_next_call(adapter, api_request_id="boom")
+    assert "boom" in response.choices[0].message.content
+
+
+def test_invalid_json_config_skips_next_call(tmp_path, monkeypatch):
+    config = tmp_path / "llm-pqr.json"
+    config.write_text("{not-json")
+    monkeypatch.setenv("LLM_PQR_CONFIG", str(config))
+    adapter = hermes_adapter.RoutingAdapter(environ={"LLM_PQR_CONFIG": str(config)})
+    _assert_skips_next_call(adapter, api_request_id="bad-json")
+
+
+def test_config_missing_models_skips_next_call(tmp_path, monkeypatch):
+    config = tmp_path / "llm-pqr.json"
+    config.write_text(json.dumps({"priorities": {"quality": 1}}))
+    monkeypatch.setenv("LLM_PQR_CONFIG", str(config))
+    adapter = hermes_adapter.RoutingAdapter(environ={"LLM_PQR_CONFIG": str(config)})
+    _assert_skips_next_call(adapter, api_request_id="no-models")
+
+
+def test_block_pop_error_skips_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, require=["vision"])
+    called = []
+
+    def next_call(request):
+        called.append(request)
+        raise AssertionError("hosted model must not be invoked")
+
+    assert adapter.on_llm_request(_request(), api_request_id="pop") is None
+
+    def boom(**_kwargs):
+        raise RuntimeError("pop failed")
+
+    adapter._pop_block = boom
+    response = adapter.on_llm_execution(_request(), next_call=next_call, api_request_id="pop")
+    assert called == []
+    assert CANARY not in str(response.choices[0].message.content)
 
 
 def test_execution_passthrough_calls_next_once(tmp_path, monkeypatch):
@@ -271,6 +403,9 @@ def test_example_config_matches_llm_pqr_models_shape():
         plugin_row = by_id[row["id"]]
         for key in ("provider", "model", "local", "quality", "latency_ms", "capabilities"):
             assert plugin_row[key] == row[key]
+    note = example["_provenance"]["note"]
+    assert "already has base_url" not in note
+    assert "always written" in note
     hermes_adapter.candidates_from_config(example)
     hermes_adapter.request_from_config(
         example, estimated_input_tokens=10, estimated_output_tokens=5
