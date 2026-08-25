@@ -410,7 +410,7 @@ class RoutingAdapter:
             self._store_decision(snapshot)
             self._set_block(snapshot, **kwargs)
         except Exception:
-            pass
+            return
 
     def _refusal(self, message: str, **kwargs: Any) -> Any:
         try:
