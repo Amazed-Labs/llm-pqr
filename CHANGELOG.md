@@ -22,6 +22,13 @@
 - Package every referenced document, example, evaluation fixture, taxonomy,
   and test in the source distribution.
 
+## 0.2.2 — 2026-08-20
+
+- Add `Request.unavailable_providers` for callers that know a provider pool is
+  in quota cooldown. Candidates on those providers are excluded before weighted
+  selection and explained as `provider unavailable`.
+- GitHub-only tag; not published to PyPI. The same API shipped on PyPI in 0.3.0.
+
 ## 0.2.1 — 2026-08-19
 
 - Add a first-run configuration example and a focused feedback path for missing
