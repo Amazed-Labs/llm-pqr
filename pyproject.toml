@@ -33,3 +33,8 @@ addopts = "-q"
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint.per-file-ignores]
+# Hermes plugin directories are hyphenated; middleware must catch Exception
+# because Hermes fails open when a callback raises.
+"integrations/hermes-plugin/**" = ["N999", "BLE001"]

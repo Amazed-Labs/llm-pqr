@@ -12,6 +12,7 @@ LLM-PQR is intentionally a small, provider-neutral selection core. This roadmap 
 - Allowlisted route telemetry summarization that never emits unknown taxonomy values.
 - Measured smoke provenance with explicit non-rankability.
 - Python 3.10–3.13 CI and verified source/wheel package builds.
+- Standalone unofficial Hermes Agent plugin (opt-in; consumes LLM-PQR; not a Nous router).
 
 ## Next
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add a standalone, unofficial Hermes Agent plugin under
+  `integrations/hermes-plugin/`. It consumes LLM-PQR via middleware and is
+  not an official Nous Research router. Selection core, CLI, tests for the
+  core, and package version 0.3.1 are unchanged.
+
 ## 0.3.1 — 2026-08-22
 
 - Score deterministic `json_exact` and `json_fields` evaluation rubrics,
