@@ -20,6 +20,8 @@ from llm_pqr import ModelCandidate, Priorities, Request, Router
 PLUGIN_NAME = "llm-pqr"
 PLUGIN_VERSION = "0.1.0"
 NO_ELIGIBLE_MESSAGE = "no eligible candidates; relax requirements or add a compatible model"
+LOCAL_MISSING_BASE_URL_MESSAGE = "local candidate has no usable base_url"
+ROUTING_FAILED_MESSAGE = "routing failed"
 REFUSAL_PREFIX = (
     "LLM-PQR refused this turn: no eligible route matched the configured "
     "constraints. The original hosted model was not invoked. This fail-closed "
@@ -185,13 +187,25 @@ def apply_candidate(
     candidate: ModelCandidate,
     extra: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Rewrite only model, plus provider/base_url when those keys already exist."""
+    """Rewrite the selected model. Local routes always set provider and base_url.
+
+    Hermes payloads typically have only ``model``. A local rewrite that omits
+    ``provider`` / ``base_url`` would leave Hermes on its default hosted
+    provider. Hosted candidates may still need only a model rewrite.
+    """
 
     updated = dict(request)
     updated["model"] = candidate.model
+    extra = extra or {}
+    if candidate.local:
+        base_url = extra.get("base_url")
+        if not base_url:
+            raise ValueError(LOCAL_MISSING_BASE_URL_MESSAGE)
+        updated["provider"] = candidate.provider
+        updated["base_url"] = base_url
+        return updated
     if "provider" in updated:
         updated["provider"] = candidate.provider
-    extra = extra or {}
     if "base_url" in updated and extra.get("base_url"):
         updated["base_url"] = extra["base_url"]
     return updated
@@ -327,7 +341,8 @@ class RoutingAdapter:
     ) -> dict[str, Any] | None:
         try:
             return self._on_llm_request(request if isinstance(request, Mapping) else {}, **kwargs)
-        except Exception:
+        except Exception as exc:
+            self._fail_closed(exc, **kwargs)
             return None
 
     def on_llm_execution(
@@ -336,19 +351,13 @@ class RoutingAdapter:
         next_call: Callable[[Any], Any] | None = None,
         **kwargs: Any,
     ) -> Any:
-        block: dict[str, Any] | None
         try:
             block = self._pop_block(**kwargs)
         except Exception:
-            block = None
+            self._fail_closed(RuntimeError("failed to read routing block"), **kwargs)
+            return self._refusal(ROUTING_FAILED_MESSAGE, **kwargs)
         if block is not None:
-            try:
-                return refusal_response(
-                    str(block.get("reason") or NO_ELIGIBLE_MESSAGE),
-                    api_mode=kwargs.get("api_mode"),
-                )
-            except Exception:
-                return refusal_response(NO_ELIGIBLE_MESSAGE)
+            return self._refusal(str(block.get("reason") or NO_ELIGIBLE_MESSAGE), **kwargs)
         if next_call is None:
             return None
         return next_call(request)
@@ -357,32 +366,57 @@ class RoutingAdapter:
         path = resolve_config_path(environ=self._environ, home=self._home)
         if path is None:
             return None
-        payload = load_plugin_config(path)
-        candidates, extras = candidates_from_config(payload)
-        input_tokens, output_tokens = estimate_tokens(request)
-        pqr_request = request_from_config(
-            payload,
-            estimated_input_tokens=input_tokens,
-            estimated_output_tokens=output_tokens,
-        )
-        router = Router(candidates, Priorities(**payload.get("priorities", {})))
+        try:
+            payload = load_plugin_config(path)
+            candidates, extras = candidates_from_config(payload)
+            input_tokens, output_tokens = estimate_tokens(request)
+            pqr_request = request_from_config(
+                payload,
+                estimated_input_tokens=input_tokens,
+                estimated_output_tokens=output_tokens,
+            )
+            router = Router(candidates, Priorities(**payload.get("priorities", {})))
+        except Exception as exc:
+            self._fail_closed(exc, **kwargs)
+            return None
         try:
             decision = self._choose(router, pqr_request)
+            rewritten = apply_candidate(
+                request, decision.candidate, extras.get(decision.candidate.id)
+            )
         except ValueError as exc:
             excluded = _eligibility_exclusions(candidates, pqr_request)
             snapshot = content_free_block(reason=str(exc) or NO_ELIGIBLE_MESSAGE, excluded=excluded)
-            self._store_decision(snapshot)
-            self._set_block(snapshot, **kwargs)
+            self._record_block(snapshot, **kwargs)
+            return None
+        except Exception as exc:
+            self._fail_closed(exc, **kwargs)
             return None
         snapshot = content_free_decision(decision)
         self._store_decision(snapshot)
         self._clear_block(**kwargs)
-        rewritten = apply_candidate(request, decision.candidate, extras.get(decision.candidate.id))
         return {
             "request": rewritten,
             "source": PLUGIN_NAME,
             "reason": snapshot["explanation"],
         }
+
+    def _fail_closed(self, exc: BaseException, **kwargs: Any) -> None:
+        snapshot = content_free_block(reason=str(exc) or ROUTING_FAILED_MESSAGE)
+        self._record_block(snapshot, **kwargs)
+
+    def _record_block(self, snapshot: Mapping[str, Any], **kwargs: Any) -> None:
+        try:
+            self._store_decision(snapshot)
+            self._set_block(snapshot, **kwargs)
+        except Exception:
+            return
+
+    def _refusal(self, message: str, **kwargs: Any) -> Any:
+        try:
+            return refusal_response(message, api_mode=kwargs.get("api_mode"))
+        except Exception:
+            return refusal_response(NO_ELIGIBLE_MESSAGE)
 
     def _correlation_key(self, **kwargs: Any) -> str:
         for key in ("api_request_id", "turn_id", "task_id"):

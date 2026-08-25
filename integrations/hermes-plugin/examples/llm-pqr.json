@@ -2,7 +2,7 @@
   "_comment": "Copy to $HERMES_HOME/llm-pqr.json or ~/.hermes/llm-pqr.json. Replace every candidate with measurements from your workload. This sample is too small to rank models.",
   "_provenance": {
     "summary": "examples/models.json from Amazed-Labs/llm-pqr",
-    "note": "Plugin-only keys local_only, require, and unavailable_providers become Request fields. Per-model base_url is applied only if the Hermes request already has base_url."
+    "note": "Plugin-only keys local_only, require, and unavailable_providers become Request fields. Per-model base_url is always written onto a local rewrite so Hermes does not keep its default hosted provider. A local candidate without a usable base_url is refused."
   },
   "local_only": false,
   "require": [],
