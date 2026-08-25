@@ -51,7 +51,21 @@ its current model.
 
 ## Install / copy
 
-The plugin is a directory, not part of the `llm-pqr` wheel. Copy it:
+The plugin is a directory, not part of the `llm-pqr` wheel. The primary
+install path is:
+
+```bash
+hermes plugins install Amazed-Labs/llm-pqr/integrations/hermes-plugin
+pip install 'llm-pqr>=0.3.1,<0.4'
+hermes plugins enable llm-pqr
+```
+
+Bare-name `hermes plugins install llm-pqr` only works after the community
+index lists it; until then use the owner/repo/subdir form above. These
+docs were written against `main` at
+`028677f395fa9070f86ed8f4d2f7f6ce17ebb739`.
+
+If you prefer a local copy:
 
 ```bash
 git clone https://github.com/Amazed-Labs/llm-pqr.git
