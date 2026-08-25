@@ -28,8 +28,8 @@ its current model.
 ## Honest limits
 
 - Fail-closed "no eligible route", broken config, unexpected routing
-  errors, and block-pop failures are **plugin-layer** behaviors. They are
-  not a Hermes-core guarantee. A later Hermes fallback, retry, or
+  errors, block-pop failures, and a lost block record are **plugin-layer**
+  behaviors. They are not a Hermes-core guarantee. A later Hermes fallback, retry, or
   another plugin could still reach a provider. The refusal object is a
   best-effort match to public Chat Completions / Anthropic / Codex
   response shapes; if Hermes changes those shapes, the refusal may be
@@ -65,9 +65,7 @@ hermes plugins enable llm-pqr
 ```
 
 Bare-name `hermes plugins install llm-pqr` only works after the community
-index lists it; until then use the owner/repo/subdir form above. These
-docs were written against `main` at
-`028677f395fa9070f86ed8f4d2f7f6ce17ebb739`.
+index lists it; until then use the owner/repo/subdir form above.
 
 If you prefer a local copy:
 
@@ -78,7 +76,7 @@ pip install 'llm-pqr>=0.3.1,<0.4'
 hermes plugins enable llm-pqr
 ```
 
-`plugin.yaml` names the plugin `llm-pqr` (version 0.1.0, author Amazed
+`plugin.yaml` names the plugin `llm-pqr` (version 0.1.1, author Amazed
 Labs). Confirm with `hermes plugins list` and `hermes plugins doctor ~/.hermes/plugins/llm-pqr`.
 
 Keep the library importable the same way this repository already does:

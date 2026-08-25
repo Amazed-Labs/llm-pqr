@@ -229,6 +229,21 @@ def test_apply_candidate_local_without_base_url_raises():
         raise AssertionError("local rewrite without base_url must fail closed")
 
 
+def test_apply_candidate_local_whitespace_base_url_raises():
+    candidate = ModelCandidate(
+        id="local-fast",
+        provider="local-runtime",
+        model="local-model",
+        local=True,
+    )
+    try:
+        hermes_adapter.apply_candidate({"model": "gpt-5-hosted"}, candidate, {"base_url": "   "})
+    except ValueError as exc:
+        assert str(exc) == hermes_adapter.LOCAL_MISSING_BASE_URL_MESSAGE
+    else:
+        raise AssertionError("whitespace base_url must not rewrite model-only")
+
+
 def test_local_candidate_without_base_url_skips_next_call(tmp_path, monkeypatch):
     models = [
         {
@@ -243,6 +258,24 @@ def test_local_candidate_without_base_url_skips_next_call(tmp_path, monkeypatch)
     ]
     adapter = _adapter(tmp_path, monkeypatch, local_only=True, models=models)
     response = _assert_skips_next_call(adapter, api_request_id="no-base")
+    assert hermes_adapter.LOCAL_MISSING_BASE_URL_MESSAGE in response.choices[0].message.content
+
+
+def test_local_candidate_blank_base_url_skips_next_call(tmp_path, monkeypatch):
+    models = [
+        {
+            "id": "local-fast",
+            "provider": "local-runtime",
+            "model": "local-model",
+            "local": True,
+            "quality": 0.4,
+            "latency_ms": 100,
+            "capabilities": ["text"],
+            "base_url": " \t ",
+        }
+    ]
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, models=models)
+    response = _assert_skips_next_call(adapter, api_request_id="blank-base")
     assert hermes_adapter.LOCAL_MISSING_BASE_URL_MESSAGE in response.choices[0].message.content
 
 
@@ -326,6 +359,35 @@ def test_config_missing_models_skips_next_call(tmp_path, monkeypatch):
     _assert_skips_next_call(adapter, api_request_id="no-models")
 
 
+def test_empty_models_list_skips_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, models=[])
+    _assert_skips_next_call(adapter, api_request_id="empty-models")
+
+
+def test_malformed_models_list_skips_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, models=["not-an-object", None])
+    _assert_skips_next_call(adapter, api_request_id="bad-models")
+
+
+def test_bad_priorities_skip_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, priorities={"cost": 0, "latency": 0, "quality": 0})
+    _assert_skips_next_call(adapter, api_request_id="bad-priorities")
+
+
+def test_unreadable_config_skips_next_call(tmp_path, monkeypatch):
+    config = _write_config(tmp_path / "llm-pqr.json")
+    adapter = hermes_adapter.RoutingAdapter(environ={"LLM_PQR_CONFIG": str(config)})
+    original = Path.read_text
+
+    def boom(self, *args, **kwargs):
+        if Path(self) == config:
+            raise PermissionError("unreadable")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", boom)
+    _assert_skips_next_call(adapter, api_request_id="unreadable")
+
+
 def test_block_pop_error_skips_next_call(tmp_path, monkeypatch):
     adapter = _adapter(tmp_path, monkeypatch, local_only=True, require=["vision"])
     called = []
@@ -343,6 +405,113 @@ def test_block_pop_error_skips_next_call(tmp_path, monkeypatch):
     response = adapter.on_llm_execution(_request(), next_call=next_call, api_request_id="pop")
     assert called == []
     assert CANARY not in str(response.choices[0].message.content)
+
+
+def test_set_block_failure_skips_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, require=["vision"])
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("cannot store block")
+
+    adapter._set_block = boom
+    _assert_skips_next_call(adapter, api_request_id="set-block-fail")
+
+
+def test_store_decision_failure_still_skips_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, require=["vision"])
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("cannot store decision")
+
+    adapter._store_decision = boom
+    called = []
+
+    def next_call(request):
+        called.append(request)
+        raise AssertionError("hosted model must not be invoked")
+
+    assert adapter.on_llm_request(_request(), api_request_id="store-fail") is None
+    response = adapter.on_llm_execution(
+        _request(), next_call=next_call, api_request_id="store-fail"
+    )
+    assert called == []
+    assert CANARY not in str(response.choices[0].message.content)
+    assert adapter.last_decision() is None
+
+
+def test_unkeyed_success_does_not_clear_other_turn_block(tmp_path, monkeypatch):
+    n = {"count": 0}
+
+    def choose(router, request):
+        n["count"] += 1
+        if n["count"] == 1:
+            raise ValueError(hermes_adapter.NO_ELIGIBLE_MESSAGE)
+        return router.choose(request)
+
+    config = _write_config(tmp_path / "llm-pqr.json")
+    adapter = hermes_adapter.RoutingAdapter(
+        environ={"LLM_PQR_CONFIG": str(config)},
+        choose=choose,
+    )
+    assert adapter.on_llm_request(_request()) is None
+    allowed = adapter.on_llm_request(_request())
+    assert allowed is not None
+
+    called = []
+
+    def next_call(request):
+        called.append(request)
+        raise AssertionError("blocked unkeyed turn must not invoke provider")
+
+    response = adapter.on_llm_execution(_request(), next_call=next_call)
+    assert called == []
+    assert CANARY not in str(response.choices[0].message.content)
+
+    marker = SimpleNamespace(ok=True)
+    out = adapter.on_llm_execution(allowed["request"], next_call=lambda request: marker)
+    assert out is marker
+
+
+def test_two_unkeyed_blocks_both_skip_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, require=["vision"])
+    assert adapter.on_llm_request(_request()) is None
+    assert adapter.on_llm_request(_request()) is None
+
+    def refuse_without_provider():
+        called = []
+
+        def next_call(request):
+            called.append(request)
+            raise AssertionError("hosted model must not be invoked")
+
+        response = adapter.on_llm_execution(_request(), next_call=next_call)
+        assert called == []
+        assert CANARY not in str(response.choices[0].message.content)
+
+    refuse_without_provider()
+    refuse_without_provider()
+
+
+def test_refusal_builder_error_still_skips_next_call(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, require=["vision"])
+    called = []
+
+    def next_call(request):
+        called.append(request)
+        raise AssertionError("hosted model must not be invoked")
+
+    assert adapter.on_llm_request(_request(), api_request_id="refusal-boom") is None
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("cannot build refusal")
+
+    monkeypatch.setattr(hermes_adapter, "refusal_response", boom)
+    response = adapter.on_llm_execution(
+        _request(), next_call=next_call, api_request_id="refusal-boom"
+    )
+    assert called == []
+    assert response is not None
+    assert CANARY not in str(response)
 
 
 def test_execution_passthrough_calls_next_once(tmp_path, monkeypatch):
@@ -410,6 +579,14 @@ def test_example_config_matches_llm_pqr_models_shape():
     hermes_adapter.request_from_config(
         example, estimated_input_tokens=10, estimated_output_tokens=5
     )
+
+
+def test_plugin_version_is_independent_of_package():
+    yaml_text = (PLUGIN_ROOT / "plugin.yaml").read_text()
+    assert "version: 0.1.1" in yaml_text
+    assert hermes_adapter.PLUGIN_VERSION == "0.1.1"
+    pyproject = (REPO / "pyproject.toml").read_text()
+    assert 'version = "0.3.1"' in pyproject
 
 
 def test_anthropic_and_codex_refusal_shapes_skip_provider():

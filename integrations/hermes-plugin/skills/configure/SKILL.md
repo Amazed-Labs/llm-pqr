@@ -9,7 +9,7 @@ This skill belongs to the independently maintained `llm-pqr` plugin by Amazed La
 
 ## Enable routing
 
-1. Copy this plugin directory to `~/.hermes/plugins/llm-pqr/` (or `$HERMES_HOME/plugins/llm-pqr/`).
+1. Install the plugin: `hermes plugins install Amazed-Labs/llm-pqr/integrations/hermes-plugin` (or copy this directory to `~/.hermes/plugins/llm-pqr/`).
 2. Install the library the plugin consumes: `pip install 'llm-pqr>=0.3.1,<0.4'`.
 3. Enable the plugin: `hermes plugins enable llm-pqr`.
 4. Write an opt-in config file. Without it the plugin is a no-op and Hermes keeps its current model.
@@ -27,7 +27,7 @@ Use the same JSON as `llm-pqr` `models.json`: `priorities` plus a `models` list 
 - `local_only` (boolean) — hard-exclude every non-local candidate
 - `require` (string list) — required capability labels such as `tools` or `vision`
 - `unavailable_providers` (string list) — hard-exclude those provider IDs
-- per-model `base_url` — for a local candidate, always written onto the rewritten request (not only when the inbound Hermes request already had `base_url`). A local candidate without a usable `base_url` is refused for that turn
+- per-model `base_url` — for a local candidate, always written onto the rewritten request. A local candidate without a usable `base_url` is refused for that turn
 
 Do not put prompts, credentials, or session IDs in this file. LLM-PQR never infers privacy from message text.
 
@@ -37,7 +37,7 @@ Copy `examples/llm-pqr.json` from this plugin and replace every candidate with m
 
 On each provider call, `llm_request` middleware may rewrite `model`. For a local candidate it also writes `provider` and `base_url` so Hermes does not keep its default hosted provider. Hosted candidates may only need a model rewrite. Tools, identity, memory, and conversation are left intact.
 
-If no candidate is eligible, the opt-in config is broken, or routing fails unexpectedly, `llm_execution` skips the provider call and returns a refusal-shaped response. Missing config remains a no-op. That fail-closed behavior is plugin-layer only, not a Hermes-core guarantee.
+If no candidate is eligible, the opt-in config is broken or unreadable, or routing fails unexpectedly, `llm_execution` skips the provider call and returns a refusal-shaped response. Missing config remains a no-op. That fail-closed behavior is plugin-layer only, not a Hermes-core guarantee.
 
 ## Inspect the last decision
 
