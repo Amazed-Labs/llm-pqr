@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+from collections import deque
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,10 +19,11 @@ from typing import Any
 from llm_pqr import ModelCandidate, Priorities, Request, Router
 
 PLUGIN_NAME = "llm-pqr"
-PLUGIN_VERSION = "0.1.0"
+PLUGIN_VERSION = "0.1.1"
 NO_ELIGIBLE_MESSAGE = "no eligible candidates; relax requirements or add a compatible model"
 LOCAL_MISSING_BASE_URL_MESSAGE = "local candidate has no usable base_url"
 ROUTING_FAILED_MESSAGE = "routing failed"
+_BLOCK_MARK = "_llm_pqr_block"
 REFUSAL_PREFIX = (
     "LLM-PQR refused this turn: no eligible route matched the configured "
     "constraints. The original hosted model was not invoked. This fail-closed "
@@ -198,7 +200,8 @@ def apply_candidate(
     updated["model"] = candidate.model
     extra = extra or {}
     if candidate.local:
-        base_url = extra.get("base_url")
+        raw = extra.get("base_url")
+        base_url = raw.strip() if isinstance(raw, str) else ""
         if not base_url:
             raise ValueError(LOCAL_MISSING_BASE_URL_MESSAGE)
         updated["provider"] = candidate.provider
@@ -206,9 +209,33 @@ def apply_candidate(
         return updated
     if "provider" in updated:
         updated["provider"] = candidate.provider
-    if "base_url" in updated and extra.get("base_url"):
-        updated["base_url"] = extra["base_url"]
+    hosted_base = extra.get("base_url")
+    if isinstance(hosted_base, str):
+        hosted_base = hosted_base.strip()
+    if "base_url" in updated and hosted_base:
+        updated["base_url"] = hosted_base
     return updated
+
+
+def _chat_completion_refusal(text: str) -> Any:
+    return SimpleNamespace(
+        id="llm-pqr-blocked",
+        model="llm-pqr",
+        object="chat.completion",
+        choices=[
+            SimpleNamespace(
+                index=0,
+                finish_reason="stop",
+                message=SimpleNamespace(
+                    role="assistant",
+                    content=text,
+                    tool_calls=None,
+                    refusal=None,
+                ),
+            )
+        ],
+        usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+    )
 
 
 def refusal_response(message: str, *, api_mode: str | None = None) -> Any:
@@ -247,24 +274,7 @@ def refusal_response(message: str, *, api_mode: str | None = None) -> Any:
             ],
             usage=SimpleNamespace(input_tokens=0, output_tokens=0),
         )
-    return SimpleNamespace(
-        id="llm-pqr-blocked",
-        model="llm-pqr",
-        object="chat.completion",
-        choices=[
-            SimpleNamespace(
-                index=0,
-                finish_reason="stop",
-                message=SimpleNamespace(
-                    role="assistant",
-                    content=text,
-                    tool_calls=None,
-                    refusal=None,
-                ),
-            )
-        ],
-        usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0, total_tokens=0),
-    )
+    return _chat_completion_refusal(text)
 
 
 def format_last_decision(snapshot: Mapping[str, Any] | None) -> str:
@@ -315,6 +325,21 @@ def _eligibility_exclusions(candidates: list[ModelCandidate], request: Request) 
     return excluded
 
 
+def _mark_request_blocked(request: Mapping[str, Any] | None, snapshot: Mapping[str, Any]) -> None:
+    if not isinstance(request, dict):
+        return
+    request[_BLOCK_MARK] = str(snapshot.get("reason") or ROUTING_FAILED_MESSAGE)
+
+
+def _request_block_reason(request: Mapping[str, Any] | None) -> str | None:
+    if not isinstance(request, Mapping):
+        return None
+    mark = request.get(_BLOCK_MARK)
+    if mark:
+        return str(mark)
+    return None
+
+
 class RoutingAdapter:
     """Thread-safe adapter used by Hermes middleware callbacks."""
 
@@ -331,6 +356,8 @@ class RoutingAdapter:
         self._lock = threading.Lock()
         self._last_decision: dict[str, Any] | None = None
         self._blocks: dict[str, dict[str, Any]] = {}
+        self._unkeyed_outcomes: deque[dict[str, Any] | None] = deque()
+        self._sticky_refuse = False
 
     def last_decision(self) -> dict[str, Any] | None:
         with self._lock:
@@ -339,10 +366,14 @@ class RoutingAdapter:
     def on_llm_request(
         self, request: Mapping[str, Any] | None = None, **kwargs: Any
     ) -> dict[str, Any] | None:
+        payload = request if isinstance(request, Mapping) else {}
         try:
-            return self._on_llm_request(request if isinstance(request, Mapping) else {}, **kwargs)
+            return self._on_llm_request(payload, **kwargs)
         except Exception as exc:
-            self._fail_closed(exc, **kwargs)
+            try:
+                self._fail_closed(exc, request=payload, **kwargs)
+            except Exception:
+                pass
             return None
 
     def on_llm_execution(
@@ -351,13 +382,33 @@ class RoutingAdapter:
         next_call: Callable[[Any], Any] | None = None,
         **kwargs: Any,
     ) -> Any:
+        blocked_reason: str | None = None
         try:
-            block = self._pop_block(**kwargs)
+            marked = _request_block_reason(request)
+            try:
+                block = self._pop_block(**kwargs)
+            except Exception:
+                try:
+                    self._fail_closed(
+                        RuntimeError("failed to read routing block"),
+                        request=request,
+                        **kwargs,
+                    )
+                except Exception:
+                    pass
+                blocked_reason = ROUTING_FAILED_MESSAGE
+            else:
+                if block is not None:
+                    blocked_reason = str(block.get("reason") or NO_ELIGIBLE_MESSAGE)
+                elif marked:
+                    blocked_reason = marked
         except Exception:
-            self._fail_closed(RuntimeError("failed to read routing block"), **kwargs)
-            return self._refusal(ROUTING_FAILED_MESSAGE, **kwargs)
-        if block is not None:
-            return self._refusal(str(block.get("reason") or NO_ELIGIBLE_MESSAGE), **kwargs)
+            blocked_reason = ROUTING_FAILED_MESSAGE
+        if blocked_reason is not None:
+            try:
+                return self._refusal(blocked_reason, **kwargs)
+            except Exception:
+                return _chat_completion_refusal(f"{REFUSAL_PREFIX} {NO_ELIGIBLE_MESSAGE}".strip())
         if next_call is None:
             return None
         return next_call(request)
@@ -377,7 +428,7 @@ class RoutingAdapter:
             )
             router = Router(candidates, Priorities(**payload.get("priorities", {})))
         except Exception as exc:
-            self._fail_closed(exc, **kwargs)
+            self._fail_closed(exc, request=request, **kwargs)
             return None
         try:
             decision = self._choose(router, pqr_request)
@@ -387,56 +438,134 @@ class RoutingAdapter:
         except ValueError as exc:
             excluded = _eligibility_exclusions(candidates, pqr_request)
             snapshot = content_free_block(reason=str(exc) or NO_ELIGIBLE_MESSAGE, excluded=excluded)
-            self._record_block(snapshot, **kwargs)
+            self._record_block(snapshot, request=request, **kwargs)
             return None
         except Exception as exc:
-            self._fail_closed(exc, **kwargs)
+            self._fail_closed(exc, request=request, **kwargs)
             return None
         snapshot = content_free_decision(decision)
-        self._store_decision(snapshot)
-        self._clear_block(**kwargs)
+        try:
+            self._store_decision(snapshot)
+        except Exception:
+            pass
+        try:
+            self._clear_block(**kwargs)
+        except Exception:
+            pass
         return {
             "request": rewritten,
             "source": PLUGIN_NAME,
             "reason": snapshot["explanation"],
         }
 
-    def _fail_closed(self, exc: BaseException, **kwargs: Any) -> None:
+    def _fail_closed(
+        self,
+        exc: BaseException,
+        request: Mapping[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
         snapshot = content_free_block(reason=str(exc) or ROUTING_FAILED_MESSAGE)
-        self._record_block(snapshot, **kwargs)
+        self._record_block(snapshot, request=request, **kwargs)
 
-    def _record_block(self, snapshot: Mapping[str, Any], **kwargs: Any) -> None:
+    def _record_block(
+        self,
+        snapshot: Mapping[str, Any],
+        request: Mapping[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
         try:
             self._store_decision(snapshot)
-            self._set_block(snapshot, **kwargs)
         except Exception:
+            pass
+        try:
+            _mark_request_blocked(request, snapshot)
+        except Exception:
+            pass
+        try:
+            self._set_block(snapshot, **kwargs)
             return
+        except Exception:
+            pass
+        try:
+            self._store_block_fallback(snapshot, **kwargs)
+        except Exception:
+            try:
+                with self._lock:
+                    self._sticky_refuse = True
+            except Exception:
+                return
 
     def _refusal(self, message: str, **kwargs: Any) -> Any:
         try:
             return refusal_response(message, api_mode=kwargs.get("api_mode"))
         except Exception:
-            return refusal_response(NO_ELIGIBLE_MESSAGE)
+            try:
+                return refusal_response(NO_ELIGIBLE_MESSAGE)
+            except Exception:
+                return _chat_completion_refusal(f"{REFUSAL_PREFIX} {NO_ELIGIBLE_MESSAGE}".strip())
 
-    def _correlation_key(self, **kwargs: Any) -> str:
+    def _correlation_key(self, **kwargs: Any) -> str | None:
         for key in ("api_request_id", "turn_id", "task_id"):
             value = kwargs.get(key)
-            if value:
-                return f"{key}:{value}"
-        return "_"
+            if isinstance(value, str):
+                value = value.strip()
+                if value:
+                    return f"{key}:{value}"
+                continue
+            if value is None or isinstance(value, bool):
+                continue
+            text = str(value).strip()
+            if text:
+                return f"{key}:{text}"
+        return None
 
     def _store_decision(self, snapshot: Mapping[str, Any]) -> None:
         with self._lock:
             self._last_decision = dict(snapshot)
 
     def _set_block(self, snapshot: Mapping[str, Any], **kwargs: Any) -> None:
+        payload = dict(snapshot)
+        key = self._correlation_key(**kwargs)
         with self._lock:
-            self._blocks[self._correlation_key(**kwargs)] = dict(snapshot)
+            if key is None:
+                self._unkeyed_outcomes.append(payload)
+            else:
+                self._blocks[key] = payload
+
+    def _store_block_fallback(self, snapshot: Mapping[str, Any], **kwargs: Any) -> None:
+        payload = dict(snapshot)
+        try:
+            key = self._correlation_key(**kwargs)
+        except Exception:
+            key = None
+        with self._lock:
+            if key is None:
+                self._unkeyed_outcomes.append(payload)
+            else:
+                self._blocks[key] = payload
 
     def _clear_block(self, **kwargs: Any) -> None:
+        key = self._correlation_key(**kwargs)
         with self._lock:
-            self._blocks.pop(self._correlation_key(**kwargs), None)
+            if key is None:
+                self._unkeyed_outcomes.append(None)
+            else:
+                self._blocks.pop(key, None)
 
     def _pop_block(self, **kwargs: Any) -> dict[str, Any] | None:
+        key = self._correlation_key(**kwargs)
         with self._lock:
-            return self._blocks.pop(self._correlation_key(**kwargs), None)
+            if key is None:
+                if self._unkeyed_outcomes:
+                    return self._unkeyed_outcomes.popleft()
+                return self._consume_sticky_refuse()
+            block = self._blocks.pop(key, None)
+            if block is not None:
+                return block
+            return self._consume_sticky_refuse()
+
+    def _consume_sticky_refuse(self) -> dict[str, Any] | None:
+        if not self._sticky_refuse:
+            return None
+        self._sticky_refuse = False
+        return content_free_block(reason=ROUTING_FAILED_MESSAGE)

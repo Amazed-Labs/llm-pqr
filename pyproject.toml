@@ -36,5 +36,6 @@ line-length = 100
 
 [tool.ruff.lint.per-file-ignores]
 # Hermes plugin directories are hyphenated; middleware must catch Exception
-# because Hermes fails open when a callback raises.
-"integrations/hermes-plugin/**" = ["N999", "BLE001"]
+# without re-raising or logging, because Hermes fails open when a callback
+# raises and this plugin has no telemetry.
+"integrations/hermes-plugin/**" = ["N999", "BLE001", "S110"]

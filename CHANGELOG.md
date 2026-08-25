@@ -2,10 +2,14 @@
 
 ## Unreleased
 
-- Hermes plugin: fail closed on broken config, unexpected routing errors,
-  and block-pop failures; always attach provider/base_url for local
-  routes (or refuse if base_url is missing). Missing config remains a
-  no-op. Selection core, CLI, and package version 0.3.1 are unchanged.
+- Hermes plugin 0.1.1: harden fail-closed routing so a lost block record,
+  a shared missing correlation key, a blank local `base_url`, or a
+  refusal-builder error cannot fall through to `next_call`. Empty or
+  malformed models, bad priorities, and an unreadable config file fail
+  closed the same way invalid JSON does. Local rewrites still always
+  write provider/base_url or refuse. Missing config remains a no-op.
+  Plugin-layer fail-closed is not a Hermes-core guarantee. Selection
+  core, CLI, and package version 0.3.1 are unchanged.
 - Add a standalone, unofficial Hermes Agent plugin under
   `integrations/hermes-plugin/`. It consumes LLM-PQR via middleware and is
   not an official Nous Research router. Install via
