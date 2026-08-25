@@ -18,8 +18,8 @@ Install [uv](https://docs.astral.sh/uv/), clone the repository, then run:
 
 ```bash
 uv run --with pytest --with ruff pytest
-uv run --with ruff ruff check src tests
-uv run --with ruff ruff format --check src tests
+uv run --with ruff ruff check src tests integrations/hermes-plugin
+uv run --with ruff ruff format --check src tests integrations/hermes-plugin
 uv build
 ```
 

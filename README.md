@@ -16,6 +16,8 @@ Model choice is contextual. A low-cost local model may be ideal for private tran
 
 A private [Hermes Agent policy-routing pilot](docs/integrations/hermes-as-consumer.md) explores the same bounded-routing questions LLM-PQR answers: hard local-only constraints, capability floors, monotonic rewrites, and content-free route logging. The pilot is independent of this package; LLM-PQR does not import, link, or run it, and the document makes no production or benchmark claims. See [PQR continuity](docs/pqr-continuity.md) for the consumer boundary: selecting a model must not silently alter an agent's context, memory, identity, or tools.
 
+A separate opt-in [Hermes Agent plugin](integrations/hermes-plugin/README.md) now lives in-tree so you can copy it to `~/.hermes/plugins/llm-pqr/`. It is independently maintained by Amazed Labs, consumes this library, and is **not** an official Nous Research router.
+
 ## Quick start
 
 ```bash
@@ -257,8 +259,8 @@ Privacy is a constraint, not a score: a non-local candidate cannot win a `--loca
 
 ```bash
 uv run --with pytest --with ruff pytest
-uv run --with ruff ruff check src tests
-uv run --with ruff ruff format --check src tests
+uv run --with ruff ruff check src tests integrations/hermes-plugin
+uv run --with ruff ruff format --check src tests integrations/hermes-plugin
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md), [SECURITY.md](SECURITY.md), [CHANGELOG.md](CHANGELOG.md), and the prepared [launch notes](LAUNCH_NOTES.md).

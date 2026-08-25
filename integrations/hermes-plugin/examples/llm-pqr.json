@@ -1,0 +1,54 @@
+{
+  "_comment": "Copy to $HERMES_HOME/llm-pqr.json or ~/.hermes/llm-pqr.json. Replace every candidate with measurements from your workload. This sample is too small to rank models.",
+  "_provenance": {
+    "summary": "examples/models.json from Amazed-Labs/llm-pqr",
+    "note": "Plugin-only keys local_only, require, and unavailable_providers become Request fields. Per-model base_url is applied only if the Hermes request already has base_url."
+  },
+  "local_only": false,
+  "require": [],
+  "unavailable_providers": [],
+  "priorities": {
+    "cost": 0,
+    "latency": 4,
+    "quality": 6
+  },
+  "models": [
+    {
+      "id": "local-qwen",
+      "provider": "local-qwen",
+      "model": "qwen3.6-35b-a3b-local",
+      "local": true,
+      "quality": 0.666667,
+      "latency_ms": 2978.1,
+      "capabilities": ["text", "json"],
+      "base_url": "http://127.0.0.1:11434/v1"
+    },
+    {
+      "id": "luna",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-luna",
+      "local": false,
+      "quality": 0.8,
+      "latency_ms": 3042.2,
+      "capabilities": ["text", "json"]
+    },
+    {
+      "id": "terra",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-terra",
+      "local": false,
+      "quality": 1.0,
+      "latency_ms": 3271.7,
+      "capabilities": ["text", "json", "tools"]
+    },
+    {
+      "id": "sol",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "local": false,
+      "quality": 1.0,
+      "latency_ms": 3244.3,
+      "capabilities": ["text", "json", "tools"]
+    }
+  ]
+}

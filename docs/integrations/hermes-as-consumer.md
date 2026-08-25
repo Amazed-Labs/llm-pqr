@@ -47,4 +47,6 @@ As of the private pilot commit `6a5638594c`:
 
 The Hermes work remains a private pilot on the `feature/llm-pqr-mbp-pilot-20260813` branch. LLM-PQR itself remains an independent alpha CLI: [github.com/Amazed-Labs/llm-pqr](https://github.com/Amazed-Labs/llm-pqr).
 
+A later, separately maintained [opt-in Hermes plugin](../../integrations/hermes-plugin/README.md) now lives under `integrations/hermes-plugin/`. It consumes LLM-PQR as a library and is not an official Nous Research router. It is not the private pilot described above.
+
 — Amazed Labs — Dov Ginsburg

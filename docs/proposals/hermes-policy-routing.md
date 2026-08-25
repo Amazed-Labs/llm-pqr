@@ -1,6 +1,6 @@
 # Proposal: an opt-in policy-routing integration for Hermes Agent
 
-> **Status:** proposal from Amazed Labs and Dov Ginsburg. It is not an official Nous Research or Hermes Agent roadmap commitment.
+> **Status:** proposal from Amazed Labs and Dov Ginsburg. It is not an official Nous Research or Hermes Agent roadmap commitment. A standalone opt-in plugin now lives at [`integrations/hermes-plugin/`](../../integrations/hermes-plugin/README.md); it consumes LLM-PQR and is independently maintained.
 
 ## Summary
 

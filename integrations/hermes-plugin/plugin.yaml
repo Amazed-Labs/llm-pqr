@@ -1,0 +1,20 @@
+# Independently maintained by Amazed Labs. This is not an official
+# Nous Research router and is not part of Hermes Agent core.
+name: llm-pqr
+version: 0.1.0
+description: >
+  Opt-in policy routing that consumes LLM-PQR before a Hermes provider
+  call. Rewrites only the selected model (and provider/base_url when those
+  keys already exist). Missing config is a no-op. Not an official Nous
+  Research router.
+author: Amazed Labs
+license: MIT
+homepage: https://github.com/Amazed-Labs/llm-pqr
+manifest_version: 2
+api_version: 1
+tags:
+  - routing
+  - policy
+  - model-selection
+python_dependencies:
+  - "llm-pqr>=0.3.1,<0.4"
