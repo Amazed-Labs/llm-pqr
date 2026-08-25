@@ -4,8 +4,10 @@
 
 - Add a standalone, unofficial Hermes Agent plugin under
   `integrations/hermes-plugin/`. It consumes LLM-PQR via middleware and is
-  not an official Nous Research router. Selection core, CLI, tests for the
-  core, and package version 0.3.1 are unchanged.
+  not an official Nous Research router. Install via
+  `hermes plugins install Amazed-Labs/llm-pqr/integrations/hermes-plugin`.
+  Selection core, CLI, tests for the core, and package version 0.3.1 are
+  unchanged.
 
 ## 0.3.1 — 2026-08-22
 
