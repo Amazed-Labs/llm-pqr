@@ -1,0 +1,21 @@
+{
+  "_comment": "TEMPLATE — not measurements, not a ranking, not Amazed Labs results. Replace every REPLACE_* placeholder. Omitted quality uses the llm-pqr default of 0.5 so this file can load; that default is not your score. local_only keeps hosted candidates ineligible so private prompts stay off hosted providers. A local candidate without a usable base_url is refused.",
+  "local_only": true,
+  "require": [],
+  "unavailable_providers": [],
+  "priorities": {
+    "cost": 0,
+    "latency": 0,
+    "quality": 1
+  },
+  "models": [
+    {
+      "id": "local",
+      "provider": "openai-compatible",
+      "model": "REPLACE_WITH_YOUR_LOCAL_MODEL_ID",
+      "local": true,
+      "capabilities": ["text"],
+      "base_url": "http://127.0.0.1:11434/v1"
+    }
+  ]
+}

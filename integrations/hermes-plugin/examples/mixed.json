@@ -1,5 +1,5 @@
 {
-  "_comment": "TEMPLATE — not measurements, not a ranking, not Amazed Labs results. Same mixed starter as mixed.json, kept under this historic filename. Replace every REPLACE_* placeholder. Omitted quality uses the llm-pqr default of 0.5 on purpose so this file cannot be mistaken for a benchmark. Set local_only true if prompts must stay off hosted providers. Per-model base_url is required for a local rewrite.",
+  "_comment": "TEMPLATE — not measurements, not a ranking, not Amazed Labs results. Replace every REPLACE_* placeholder. Omitted quality uses the llm-pqr default of 0.5 on purpose so this file cannot be mistaken for a benchmark. Set local_only true if prompts must stay off hosted providers. Per-model base_url is required for a local rewrite.",
   "local_only": false,
   "require": [],
   "unavailable_providers": [],
