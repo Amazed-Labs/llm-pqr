@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Hermes plugin 0.2.0: first-run UX so you can tell routing is idle or
+  live. `/pqr` and a `pqr_status` tool report the config path (or that
+  none was found), last selected id/reason/exclusions, and last block
+  reason — never prompts. Missing config still no-ops provider calls.
+  Ships local-only and mixed starter templates that are placeholders, not
+  measurements. Middleware callbacks accept Hermes kwargs. Fail-closed
+  contract from #18/#19 is unchanged. Package version stays 0.3.1.
 - Hermes plugin 0.1.1: harden fail-closed routing so a lost block record,
   a shared missing correlation key, a blank local `base_url`, or a
   refusal-builder error cannot fall through to `next_call`. Empty or

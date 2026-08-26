@@ -88,6 +88,7 @@ class FakeCtx:
         self.middleware: list[tuple[str, object]] = []
         self.commands: list[tuple[str, object, str]] = []
         self.skills: list[tuple[str, Path]] = []
+        self.tools: list[dict] = []
 
     def register_middleware(self, kind, callback):
         self.middleware.append((kind, callback))
@@ -97,6 +98,9 @@ class FakeCtx:
 
     def register_skill(self, name, path):
         self.skills.append((name, Path(path)))
+
+    def register_tool(self, name, toolset, schema, handler, **_kwargs):
+        self.tools.append({"name": name, "toolset": toolset, "schema": schema, "handler": handler})
 
 
 def _assert_skips_next_call(adapter, *, api_request_id="blocked"):
@@ -135,6 +139,14 @@ def test_missing_config_is_noop(monkeypatch):
     out = adapter.on_llm_execution(_request(), next_call=next_call)
     assert out.ok is True
     assert len(called) == 1
+    text = adapter.status_text()
+    assert "idle" in text.lower()
+    assert CANARY not in text
+    status = adapter.status()
+    assert status["state"] == "idle"
+    assert status["config"]["found"] is False
+    assert "llm-pqr.json" in text
+    assert "local-only.json" in text
 
 
 def test_hermes_home_config_is_used(tmp_path, monkeypatch):
@@ -536,10 +548,16 @@ def test_last_decision_and_slash_output_are_content_free(tmp_path, monkeypatch):
     adapter.on_llm_request(_request())
     snapshot = adapter.last_decision()
     text = hermes_adapter.format_last_decision(snapshot)
+    status_text = adapter.status_text()
     assert snapshot["selected"]["id"] == "hosted-tools"
     assert CANARY not in text
+    assert CANARY not in status_text
     assert "messages" not in snapshot
     assert "input" not in snapshot
+    dumped = json.dumps(adapter.status())
+    assert CANARY not in dumped
+    assert adapter.status()["state"] == "live"
+    assert "hosted-tools" in status_text
 
 
 def test_register_wires_middleware_skill_and_command_without_hermes():
@@ -561,30 +579,65 @@ def test_register_wires_middleware_skill_and_command_without_hermes():
     assert ctx.skills[0][0] == "configure"
     assert ctx.skills[0][1].name == "SKILL.md"
     assert CANARY not in ctx.commands[0][2]
+    assert ctx.tools[0]["name"] == "pqr_status"
+    tool_text = ctx.tools[0]["handler"]({"prompt": CANARY})
+    assert CANARY not in tool_text
+    assert '"state"' in tool_text
+
+    class BareCtx:
+        def __init__(self) -> None:
+            self.middleware = []
+            self.commands = []
+            self.skills = []
+
+        def register_middleware(self, kind, callback):
+            self.middleware.append((kind, callback))
+
+        def register_command(self, name, handler, description=""):
+            self.commands.append((name, handler, description))
+
+        def register_skill(self, name, path):
+            self.skills.append((name, Path(path)))
+
+    bare = BareCtx()
+    module.register(bare)
+    assert [kind for kind, _ in bare.middleware] == ["llm_request", "llm_execution"]
+    assert bare.commands[0][0] == "pqr"
 
 
-def test_example_config_matches_llm_pqr_models_shape():
-    example = json.loads((PLUGIN_ROOT / "examples" / "llm-pqr.json").read_text())
-    repo_example = json.loads((REPO / "examples" / "models.json").read_text())
-    assert "priorities" in example and "models" in example
-    by_id = {row["id"]: row for row in example["models"]}
-    for row in repo_example["models"]:
-        plugin_row = by_id[row["id"]]
-        for key in ("provider", "model", "local", "quality", "latency_ms", "capabilities"):
-            assert plugin_row[key] == row[key]
-    note = example["_provenance"]["note"]
-    assert "already has base_url" not in note
-    assert "always written" in note
-    hermes_adapter.candidates_from_config(example)
-    hermes_adapter.request_from_config(
-        example, estimated_input_tokens=10, estimated_output_tokens=5
-    )
+def test_starter_templates_are_not_measured_truth():
+    names = ("local-only.json", "mixed.json", "llm-pqr.json")
+    for name in names:
+        example = json.loads((PLUGIN_ROOT / "examples" / name).read_text())
+        comment = example["_comment"]
+        assert "TEMPLATE" in comment
+        assert "not measurements" in comment.lower() or "not a ranking" in comment.lower()
+        blob = json.dumps(example)
+        assert "0.666667" not in blob
+        assert "2978.1" not in blob
+        assert "qwen3.6" not in blob
+        assert "gpt-5.6" not in blob
+        assert any("REPLACE" in json.dumps(row) for row in example["models"])
+        hermes_adapter.candidates_from_config(example)
+        hermes_adapter.request_from_config(
+            example, estimated_input_tokens=10, estimated_output_tokens=5
+        )
+
+    local = json.loads((PLUGIN_ROOT / "examples" / "local-only.json").read_text())
+    assert local["local_only"] is True
+    assert all(row["local"] for row in local["models"])
+    assert all(row.get("base_url") for row in local["models"])
+
+    mixed = json.loads((PLUGIN_ROOT / "examples" / "mixed.json").read_text())
+    assert mixed["local_only"] is False
+    assert any(row["local"] for row in mixed["models"])
+    assert any(not row["local"] for row in mixed["models"])
 
 
 def test_plugin_version_is_independent_of_package():
     yaml_text = (PLUGIN_ROOT / "plugin.yaml").read_text()
-    assert "version: 0.1.1" in yaml_text
-    assert hermes_adapter.PLUGIN_VERSION == "0.1.1"
+    assert "version: 0.2.0" in yaml_text
+    assert hermes_adapter.PLUGIN_VERSION == "0.2.0"
     pyproject = (REPO / "pyproject.toml").read_text()
     assert 'version = "0.3.1"' in pyproject
 
@@ -597,3 +650,121 @@ def test_anthropic_and_codex_refusal_shapes_skip_provider():
     codex = hermes_adapter.refusal_response("no eligible candidates", api_mode="codex_responses")
     assert "no eligible" in codex.output_text
     assert isinstance(codex.output, list) and codex.output
+
+
+def test_valid_config_status_is_ready_before_a_turn(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch)
+    status = adapter.status()
+    assert status["state"] == "ready"
+    assert status["config"]["found"] is True
+    assert CANARY not in adapter.status_text()
+    assert adapter.last_decision() is None
+
+
+def test_local_only_status_is_live_after_rewrite(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True)
+    result = adapter.on_llm_request(_request())
+    rewritten = result["request"]
+    assert rewritten["provider"] == "local-runtime"
+    assert rewritten["base_url"] == "http://127.0.0.1:9/v1"
+    text = adapter.status_text()
+    assert adapter.status()["state"] == "live"
+    assert "local-fast" in text
+    assert CANARY not in text
+
+
+def test_broken_config_is_diagnosable_in_pqr_and_still_fail_closed(tmp_path, monkeypatch):
+    config = tmp_path / "llm-pqr.json"
+    config.write_text("{not-json")
+    adapter = hermes_adapter.RoutingAdapter(environ={"LLM_PQR_CONFIG": str(config)})
+    text = adapter.status_text()
+    assert adapter.status()["state"] == "blocked"
+    assert "invalid JSON" in text
+    assert CANARY not in text
+    assert CANARY not in json.dumps(adapter.status())
+    _assert_skips_next_call(adapter, api_request_id="bad-json-status")
+    after = adapter.status_text()
+    assert CANARY not in after
+    assert adapter.last_decision()["selected"] is None
+
+
+def test_blank_base_url_block_reason_is_in_pqr(tmp_path, monkeypatch):
+    models = [
+        {
+            "id": "local-fast",
+            "provider": "local-runtime",
+            "model": "local-model",
+            "local": True,
+            "quality": 0.4,
+            "latency_ms": 100,
+            "capabilities": ["text"],
+            "base_url": " \t ",
+        }
+    ]
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, models=models)
+    _assert_skips_next_call(adapter, api_request_id="blank-base-status")
+    text = adapter.status_text()
+    assert adapter.status()["state"] == "blocked"
+    assert hermes_adapter.LOCAL_MISSING_BASE_URL_MESSAGE in text
+    assert CANARY not in text
+
+
+def test_missing_llm_pqr_config_env_file_is_idle_not_routing(tmp_path, monkeypatch):
+    missing = tmp_path / "does-not-exist.json"
+    adapter = hermes_adapter.RoutingAdapter(environ={"LLM_PQR_CONFIG": str(missing)})
+    assert adapter.on_llm_request(_request()) is None
+    called = []
+
+    def next_call(request):
+        called.append(request)
+        return SimpleNamespace(ok=True)
+
+    assert adapter.on_llm_execution(_request(), next_call=next_call).ok is True
+    assert called
+    text = adapter.status_text()
+    assert adapter.status()["state"] == "idle"
+    assert "does-not-exist.json" in text
+    assert CANARY not in text
+
+
+def test_middleware_accepts_hermes_kwargs(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True)
+    original = _request()
+    result = adapter.on_llm_request(
+        request=original,
+        original_request=dict(original),
+        telemetry_schema_version="hermes.observer.v1",
+        middleware_schema_version="hermes.middleware.v1",
+        api_request_id="kw-route",
+    )
+    assert result is not None
+    rewritten = result["request"]
+    assert rewritten["model"] == "local-model"
+    assert rewritten["provider"] == "local-runtime"
+    assert rewritten["base_url"] == "http://127.0.0.1:9/v1"
+    marker = SimpleNamespace(ok=True)
+    calls = []
+
+    def next_call(request):
+        calls.append(request)
+        return marker
+
+    out = adapter.on_llm_execution(
+        request=rewritten,
+        original_request=original,
+        next_call=next_call,
+        api_request_id="kw-route",
+        api_mode="chat_completions",
+    )
+    assert out is marker
+    assert calls == [rewritten]
+
+
+def test_pqr_command_never_includes_canary(tmp_path, monkeypatch):
+    adapter = _adapter(tmp_path, monkeypatch, local_only=True, require=["vision"])
+    adapter.on_llm_request(_request())
+    text = hermes_adapter.format_status(adapter.status())
+    idle = hermes_adapter.format_last_decision(None)
+    assert CANARY not in text
+    assert CANARY not in idle
+    assert "idle" in idle.lower()

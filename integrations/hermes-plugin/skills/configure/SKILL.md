@@ -1,51 +1,48 @@
 ---
 name: configure
-description: Configure the unofficial Amazed Labs LLM-PQR plugin for Hermes Agent.
+description: Enable unofficial Amazed Labs LLM-PQR routing in Hermes and verify it with /pqr.
 ---
 
 # Configure LLM-PQR for Hermes
 
-This skill belongs to the independently maintained `llm-pqr` plugin by Amazed Labs. It is **not** an official Nous Research router. Hermes does not ship or require this plugin.
+Unofficial Amazed Labs plugin. Not a Nous Research router.
 
-## Enable routing
+## Do this
 
-1. Install the plugin: `hermes plugins install Amazed-Labs/llm-pqr/integrations/hermes-plugin` (or copy this directory to `~/.hermes/plugins/llm-pqr/`).
-2. Install the library the plugin consumes: `pip install 'llm-pqr>=0.3.1,<0.4'`.
-3. Enable the plugin: `hermes plugins enable llm-pqr`.
-4. Write an opt-in config file. Without it the plugin is a no-op and Hermes keeps its current model.
+1. Install: `hermes plugins install Amazed-Labs/llm-pqr/integrations/hermes-plugin`
+2. Library: `pip install 'llm-pqr>=0.3.1,<0.4'`
+3. Enable: `hermes plugins enable llm-pqr`
+4. Write a config (templates, not measurements):
 
-Config lookup order:
+```bash
+cp ~/.hermes/plugins/llm-pqr/examples/local-only.json ~/.hermes/llm-pqr.json
+# or: examples/mixed.json for local + hosted
+```
 
-1. `$LLM_PQR_CONFIG`
-2. `$HERMES_HOME/llm-pqr.json`
-3. `~/.hermes/llm-pqr.json`
+Replace every `REPLACE_*` placeholder. Keep `local_only: true` if prompts
+must stay off hosted providers. Local candidates need a real `base_url`.
 
-## Config shape
+5. In the session, type `/pqr`.
 
-Use the same JSON as `llm-pqr` `models.json`: `priorities` plus a `models` list of measured candidates. Plugin-only keys (optional):
+- **idle** — no file found. Provider calls are unchanged. Write the JSON above.
+- **ready** — config loaded; send a message, then `/pqr` again.
+- **live** — last turn selected an id (reason and exclusions are listed).
+- **blocked** — that turn skipped the hosted call. Read the block reason.
 
-- `local_only` (boolean) — hard-exclude every non-local candidate
-- `require` (string list) — required capability labels such as `tools` or `vision`
-- `unavailable_providers` (string list) — hard-exclude those provider IDs
-- per-model `base_url` — for a local candidate, always written onto the rewritten request. A local candidate without a usable `base_url` is refused for that turn
+The `pqr_status` tool reports the same snapshot. Neither `/pqr` nor the
+tool sends prompt text to the router.
 
-Do not put prompts, credentials, or session IDs in this file. LLM-PQR never infers privacy from message text.
+Lookup order: `$LLM_PQR_CONFIG`, then `$HERMES_HOME/llm-pqr.json`, then
+`~/.hermes/llm-pqr.json`.
 
-Copy `examples/llm-pqr.json` from this plugin and replace every candidate with measurements from your workload.
+## Common failures
 
-## What the plugin changes
+| What you see | What to do |
+|---|---|
+| idle / no config file | Copy a starter to `~/.hermes/llm-pqr.json`. Missing config never starts routing. |
+| local candidate has no usable base_url | Set `base_url` on that model (for example `http://127.0.0.1:11434/v1`). |
+| no eligible candidates | Relax `local_only` / `require` / `unavailable_providers`, or add a matching model. |
+| invalid JSON / unreadable / missing models | Fix the file. Broken config fails closed (skips the hosted call) and shows up in `/pqr`. |
 
-On each provider call, `llm_request` middleware may rewrite `model`. For a local candidate it also writes `provider` and `base_url` so Hermes does not keep its default hosted provider. Hosted candidates may only need a model rewrite. Tools, identity, memory, and conversation are left intact.
-
-If no candidate is eligible, the opt-in config is broken or unreadable, or routing fails unexpectedly, `llm_execution` skips the provider call and returns a refusal-shaped response. Missing config remains a no-op. That fail-closed behavior is plugin-layer only, not a Hermes-core guarantee.
-
-## Inspect the last decision
-
-In a Hermes session, `/pqr` prints the last content-free decision: selected id, exclusions, and score. It never prints prompts.
-
-## Non-goals
-
-- Not an official Nous router or usage tracker
-- Does not call providers, store credentials, or phone home
-- Does not rank models for you; you supply measurements
-- A `local: true` flag is a declaration, not endpoint attestation
+Do not put prompts or API keys in the config. A `local: true` flag is a
+declaration, not proof the endpoint is local.
