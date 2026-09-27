@@ -68,3 +68,19 @@ def test_explanation_contains_scores_and_assumptions():
     )
     assert "estimated cost" in decision.explain()
     assert "priority weights" in decision.explain()
+
+
+def test_unknown_rates_do_not_beat_measured_free_model():
+    measured = ModelCandidate(id="free", provider="local", model="a", quality=0.5,
+                              latency_ms=100, input_cost_per_million=0,
+                              output_cost_per_million=0)
+    unknown = ModelCandidate(id="unknown", provider="remote", model="b", quality=0.5,
+                             latency_ms=100)
+    decision = Router([measured, unknown], Priorities(cost=1, latency=0, quality=0)).choose(Request())
+    assert decision.candidate.id == "free"
+
+def test_unknown_latency_does_not_beat_measured_latency():
+    measured = ModelCandidate(id="fast", provider="local", model="a", latency_ms=50)
+    unknown = ModelCandidate(id="unknown", provider="remote", model="b")
+    decision = Router([measured, unknown], Priorities(cost=0, latency=1, quality=0)).choose(Request())
+    assert decision.candidate.id == "fast"

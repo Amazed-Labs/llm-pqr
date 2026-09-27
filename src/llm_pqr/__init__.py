@@ -134,9 +134,12 @@ class Router:
         def score(candidate: ModelCandidate) -> float:
             cost = costs[candidate.id]
             latency = latencies[candidate.id]
-            cost_score = 1.0 if max_cost == 0 or cost is None else 1 - (cost / max_cost)
-            latency_score = (
-                1.0 if max_latency == 0 or latency is None else 1 - (latency / max_latency)
+            # Unknown measurements must not be treated as free or instantaneous.
+            cost_score = (0.0 if known_costs else 1.0) if cost is None else (
+                1.0 if max_cost == 0 else 1 / (1 + cost / max_cost)
+            )
+            latency_score = (0.0 if known_latencies else 1.0) if latency is None else (
+                1.0 if max_latency == 0 else 1 / (1 + latency / max_latency)
             )
             return (
                 weights["cost"] * cost_score
