@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+import math
 
 
 @dataclass(frozen=True)
@@ -28,10 +29,10 @@ class ModelCandidate:
     def __post_init__(self) -> None:
         if not self.id or not self.provider or not self.model:
             raise ValueError("candidate id, provider, and model are required")
-        if not 0 <= self.quality <= 1:
-            raise ValueError("quality must be between 0 and 1")
+        if not math.isfinite(self.quality) or not 0 <= self.quality <= 1:
+            raise ValueError("quality must be finite and between 0 and 1")
         for value in (self.latency_ms, self.input_cost_per_million, self.output_cost_per_million):
-            if value is not None and value < 0:
+            if value is not None and (not math.isfinite(value) or value < 0):
                 raise ValueError("latency and token rates cannot be negative")
 
 
@@ -44,7 +45,7 @@ class Priorities:
     quality: float = 1 / 3
 
     def __post_init__(self) -> None:
-        if any(value < 0 for value in (self.cost, self.latency, self.quality)):
+        if any(not math.isfinite(value) or value < 0 for value in (self.cost, self.latency, self.quality)):
             raise ValueError("priority weights cannot be negative")
         if self.cost + self.latency + self.quality == 0:
             raise ValueError("at least one priority weight must be positive")

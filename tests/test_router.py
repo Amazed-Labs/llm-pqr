@@ -84,3 +84,17 @@ def test_unknown_latency_does_not_beat_measured_latency():
     unknown = ModelCandidate(id="unknown", provider="remote", model="b")
     decision = Router([measured, unknown], Priorities(cost=0, latency=1, quality=0)).choose(Request())
     assert decision.candidate.id == "fast"
+
+
+def test_nan_quality_is_rejected():
+    import pytest
+    with pytest.raises(ValueError, match="finite"):
+        ModelCandidate(id="bad", provider="p", model="m", quality=float("nan"))
+
+
+def test_infinite_latency_and_weight_are_rejected():
+    import pytest
+    with pytest.raises(ValueError, match="cannot be negative"):
+        ModelCandidate(id="bad", provider="p", model="m", latency_ms=float("inf"))
+    with pytest.raises(ValueError, match="cannot be negative"):
+        Priorities(cost=float("nan"))
