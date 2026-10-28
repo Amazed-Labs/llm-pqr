@@ -18,6 +18,48 @@ A private [Hermes Agent policy-routing pilot](docs/integrations/hermes-as-consum
 
 A separate opt-in [Hermes Agent plugin](integrations/hermes-plugin/README.md) now lives in-tree. Testers can install it with `hermes plugins install Amazed-Labs/llm-pqr/integrations/hermes-plugin` or copy it to `~/.hermes/plugins/llm-pqr/`. After enable, `/pqr` shows whether routing is idle or live. It is independently maintained by Amazed Labs, consumes this library, and is **not** an official Nous Research router.
 
+## Hermes consuming a recommendation
+
+Hermes Agent can consume the same recommendation from a skill or a cron job. This is a sidecar next to the opt-in plugin above: the plugin rewrites a provider call when a config file is present; the skill only runs the CLI and reports the JSON. LLM-PQR still makes no provider call.
+
+Install the CLI (`python -m pip install llm-pqr`) so `llm-pqr` is on `PATH`. Save the skill as `~/.hermes/skills/llm-pqr-choose/SKILL.md`. In a Hermes session, `/llm-pqr-choose` loads it. Run the command from a clone of this repo so `examples/models.json` resolves, or pass an absolute `--config` path. Hermes runs it with the terminal tool.
+
+````markdown
+---
+name: llm-pqr-choose
+description: Run llm-pqr choose and report the selected model.
+---
+
+# Choose a model with LLM-PQR
+
+Use the terminal tool. Use only the flags listed here.
+
+```bash
+llm-pqr choose \
+  --config examples/models.json \
+  --input-tokens 1200 \
+  --output-tokens 300
+```
+
+The command prints one JSON object. Report `selected.provider`, `selected.model`, `selected.local`, `reason`, and `excluded`. Prompt text stays in Hermes. If the command exits non-zero, report the error text and leave the model choice unset.
+
+Add `--local-only` only when the user wants a local model. Pass `--require` once per named capability, for example `--require tools`.
+````
+
+On `examples/models.json`, that command selects `sol` (`provider` `openai-codex`, `model` `gpt-5.6-sol`). `excluded` is `{}` and `estimated_cost_usd` is `null`. Hermes reports those fields. Memory, tools, and identity stay as they are. To use the reported model for the current session, run `/model <provider>:<model>` only when that provider is already configured. `/model` with no arguments lists those providers.
+
+The same skill can run on a schedule. Create the skill file first. `--workdir` is the absolute path of your clone:
+
+```bash
+hermes cron create "every 1d at 09:00" \
+  "Run the llm-pqr-choose skill for examples/models.json with 1200 input tokens and 300 output tokens. Report selected.provider, selected.model, reason, and excluded." \
+  --skill llm-pqr-choose \
+  --workdir /absolute/path/to/llm-pqr \
+  --name "llm-pqr recommendation"
+```
+
+The job loads the skill, and the agent runs `llm-pqr choose` from that directory. Hermes delivers the agent's report to the origin chat.
+
 ## Quick start
 
 ```bash

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- README: a Hermes skill and cron example that runs `llm-pqr choose` and
+  reports the selected model. The CLI, selection core, and package version
+  are unchanged.
 - Hermes plugin 0.2.0: first-run UX so you can tell routing is idle or
   live. `/pqr` and a `pqr_status` tool report the config path (or that
   none was found), last selected id/reason/exclusions, and last block
